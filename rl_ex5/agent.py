@@ -30,7 +30,7 @@ class Policy(torch.nn.Module):
 
         # TODO: Instantiate and return a normal distribution
         # with mean mu and std of sigma (T1)
-
+        return Normal(mu, sigma)
         # TODO: Add a layer for state value calculation (T3)
 
 
@@ -50,8 +50,9 @@ class Agent(object):
         rewards = torch.stack(self.rewards, dim=0).to(self.train_device).squeeze(-1)
         self.states, self.action_probs, self.rewards = [], [], []
 
-        # TODO: Compute discounted rewards (use the discount_rewards function)
-
+        
+        # TODO: Computact_log_probe discounted rewards (use the discount_rewards function)
+        discounter_r = discount_rewards(self.rewards, self.gamma)
         # TODO: Compute critic loss and advantages (T3)
 
         # TODO: Compute the optimization term (T1, T3)
@@ -62,14 +63,16 @@ class Agent(object):
 
     def get_action(self, observation, evaluation=False):
         x = torch.from_numpy(observation).float().to(self.train_device)
-
         # TODO: Pass state x through the policy network (T1)
-
+        out_dist = self.policy(x)
         # TODO: Return mean if evaluation, else sample from the distribution
         # returned by the policy (T1)
-
+        if evaluation:
+            return out_dist.mean
+        else:
+            action = out_dist.sample()
         # TODO: Calculate the log probability of the action (T1)
-
+        act_log_prob = out_dist.log_prob(action)
         # TODO: Return state value prediction, and/or save it somewhere (T3)
 
         return action, act_log_prob

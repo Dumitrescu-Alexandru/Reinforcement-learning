@@ -49,11 +49,11 @@ class Agent(object):
         if len(state.shape) == 1:
             state = state.reshape(1, -1)
 
-        # state = np.concatenate((state, abs(state)), 1)
-        # return state
+        state = np.concatenate((state, abs(state)), 1)
+        return state
         # Task 1a: TODO: Use (s, abs(s)) as features
         # Task 1b: RBF features
-        return self.featurizer.transform(self.scaler.transform(state))
+        # return self.featurizer.transform(self.scaler.transform(state))
 
     def update_estimator(self):
         if len(self.memory) < self.batch_size:
