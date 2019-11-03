@@ -43,7 +43,7 @@ n_actions = env.action_space.n
 state_space_dim = env.observation_space.shape[0]
 
 # Tasks 1-3 - RBF
-agent = RBFAgent(n_actions)
+# agent = RBFAgent(n_actions)
 
 # Task 4 - DQN
 agent = DQNAgent(state_space_dim, n_actions, replay_buffer_size, batch_size,
@@ -67,9 +67,9 @@ for ep in range(num_episodes):
         # agent.single_update(state, action, next_state, reward, done)
         agent.store_transition(state, action, next_state, reward, done)
         # agent.update_estimator()
-        agent.update_network()
         # Task 2: TODO: Store transition and batch-update Q-values
         # Task 4: Update the DQN
+        agent.update_network()
 
         # Move to the next state
         state = next_state

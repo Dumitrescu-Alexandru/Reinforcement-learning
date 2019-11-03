@@ -49,11 +49,11 @@ class Agent(object):
         if len(state.shape) == 1:
             state = state.reshape(1, -1)
 
-        state = np.concatenate((state, abs(state)), 1)
-        return state
+        # state = np.concatenate((state, abs(state)), 1)
+        # return state
         # Task 1a: TODO: Use (s, abs(s)) as features
         # Task 1b: RBF features
-        # return self.featurizer.transform(self.scaler.transform(state))
+        return self.featurizer.transform(self.scaler.transform(state))
 
     def update_estimator(self):
         if len(self.memory) < self.batch_size:
@@ -77,7 +77,6 @@ class Agent(object):
         featurized_next_states = self.featurize(next_states)
         next_qs = [q_fn.predict(featurized_next_states) for q_fn in self.q_functions]
         next_qs = np.max(np.array(next_qs), 0)
-        # next_qs = next_qs * not_dones
         idx = dones == True
         if np.any(idx):
             next_qs[idx] = 0
