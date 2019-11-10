@@ -3,7 +3,7 @@ import gym
 import numpy as np
 import argparse
 import matplotlib.pyplot as plt
-from agent import Agent, Policy
+from ac_agent import Agent, Policy, Value
 from cp_cont import CartPoleEnv
 import pandas as pd
 
@@ -12,20 +12,23 @@ import pandas as pd
 def train(env_name, print_things=True, train_run_id=0, train_episodes=5000):
     # Create a Gym environment
     env = gym.make(env_name)
-
+    train_device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
     # Get dimensionalities of actions and observations
     action_space_dim = env.action_space.shape[-1]
     observation_space_dim = env.observation_space.shape[-1]
 
     # Instantiate agent and its policy
-    policy = Policy(observation_space_dim, action_space_dim, args.sigma_type)
-    agent = Agent(policy, args.normalize_rewards, args.baseline)
+    policy = Policy(observation_space_dim, action_space_dim, sigma_type=args.sigma_type)
+    value_fn = Value(observation_space_dim)
+    agent = Agent(policy, args.normalize_rewards, args.baseline, value_fn)
 
     # Arrays to keep track of rewards
     reward_history, timestep_history = [], []
     average_reward_history = []
 
     # Run actual training
+    t = 1
+    batches_remain = 0
     for episode_number in range(train_episodes):
         reward_sum, timesteps = 0, 0
         done = False
@@ -34,18 +37,21 @@ def train(env_name, print_things=True, train_run_id=0, train_episodes=5000):
         # Loop until the episode is over
         while not done:
             # Get action from the agent
-            action, action_probabilities = agent.get_action(observation, ep=episode_number)
+            action, action_probabilities = agent.get_action(observation)
+            observation_tensor = torch.from_numpy(observation).float().to(train_device)
+            value = agent.value_fn(observation_tensor)
             previous_observation = observation
 
             # Perform the action on the environment, get new state and reward
             observation, reward, done, info = env.step(action.detach().cpu().numpy())
-
-            # Store action's outcome (so that the agent can improve its policy)
-            agent.store_outcome(previous_observation, action_probabilities, action, reward)
+           # Store action's outcome (so that the agent can improve its policy)
+            agent.store_outcome(previous_observation, action_probabilities, action, reward, value, done)
 
             # Store total episode reward
             reward_sum += reward
             timesteps += 1
+            if args.every_10 and len(agent.states) == 10:
+                agent.episode_finished()
 
         if print_things:
             print("Episode {} finished. Total reward: {:.3g} ({} timesteps)"
@@ -59,9 +65,8 @@ def train(env_name, print_things=True, train_run_id=0, train_episodes=5000):
         else:
             avg = np.mean(reward_history)
         average_reward_history.append(avg)
-
-        # Let the agent do its magic (update the policy)
-        agent.episode_finished(episode_number)
+        if not args.every_10:
+            agent.episode_finished()
 
     # Training is finished - plot rewards
     if print_things:
@@ -72,9 +77,9 @@ def train(env_name, print_things=True, train_run_id=0, train_episodes=5000):
         plt.show()
         print("Training finished.")
     data = pd.DataFrame({"episode": np.arange(len(reward_history)),
-                         "train_run_id": [train_run_id]*len(reward_history),
+                         "train_run_id": [train_run_id] * len(reward_history),
                          # TODO: Change algorithm name for plots, if you want
-                         "algorithm": ["PG"]*len(reward_history),
+                         "algorithm": ["PG"] * len(reward_history),
                          "reward": reward_history})
     torch.save(agent.policy.state_dict(), "model_%s_%d.mdl" % (env_name, train_run_id))
     return data
@@ -110,7 +115,7 @@ def test(env_name, episodes, params, render):
                 env.render()
             test_reward += reward
             test_len += 1
-    print("Average test reward:", test_reward/episodes, "episode length:", test_len/episodes)
+    print("Average test reward:", test_reward / episodes, "episode length:", test_len / episodes)
 
 
 if __name__ == "__main__":
@@ -122,8 +127,10 @@ if __name__ == "__main__":
     parser.add_argument("--normalize_rewards", default=False, action='store_true', help="use zero mean/unit variance"
                                                                                         "normalization")
     parser.add_argument("--baseline", type=int, default=0, help="Baseline to 0 (default=0 - no baseline)")
-    parser.add_argument("--sigma_type", type=str, default="constant", help="Learn sigma as a model parameter")
-
+    parser.add_argument("--sigma_type", type=str, default="constant", help="Learn sigma as a model parameter"
+                                                                           "learn_sigma")
+    parser.add_argument("--every_10", default=False, action="store_true",
+                        help="Baseline to 0 (default=0 - no baseline)")
 
     args = parser.parse_args()
 
@@ -139,4 +146,3 @@ if __name__ == "__main__":
         state_dict = torch.load(args.test)
         print("Testing...")
         test(args.env, 100, state_dict, args.render_test)
-

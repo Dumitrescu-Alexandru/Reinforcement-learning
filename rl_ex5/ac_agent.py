@@ -5,6 +5,29 @@ import numpy as np
 from utils import discount_rewards
 
 
+class Value(torch.nn.Module):
+    def __init__(self, state_space):
+        super().__init__()
+        self.train_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.state_space = state_space
+        self.hidden = 64
+        self.fc1 = torch.nn.Linear(state_space, self.hidden)
+        self.fc2 = torch.nn.Linear(self.hidden, 1)
+        self.init_weights()
+
+    def init_weights(self):
+        for m in self.modules():
+            if type(m) is torch.nn.Linear:
+                torch.nn.init.normal_(m.weight)
+                torch.nn.init.zeros_(m.bias)
+
+    def forward(self, x):
+        x = self.fc1(x)
+        x = F.relu(x)
+        out = self.fc2(x)
+        return out
+
+
 class Policy(torch.nn.Module):
     def __init__(self, state_space, action_space, sigma_type):
         super().__init__()
@@ -14,10 +37,10 @@ class Policy(torch.nn.Module):
         self.hidden = 64
         self.fc1 = torch.nn.Linear(state_space, self.hidden)
         self.fc2_mean = torch.nn.Linear(self.hidden, action_space)
-        self.sigma = torch.tensor([10], dtype=torch.float32,
+        self.sigma = torch.tensor([5], dtype=torch.float32,
                                   device=self.train_device)  # TODO: Implement accordingly (T1, T2)
         self.sigma_type = sigma_type
-        if sigma_type == "learn_sigma":
+        if str(sigma_type) == "learn_sigma":
             self.sigma = torch.nn.Parameter(self.sigma)
         self.init_weights()
 
@@ -32,7 +55,7 @@ class Policy(torch.nn.Module):
         x = F.relu(x)
         mu = self.fc2_mean(x)
         if self.sigma_type == "exp_decay":
-            sigma = self.sigma * np.exp(-5 * 10**(-4) * ep)
+            sigma = self.sigma * np.exp(-5 * 10 ** (-4) * ep)
         else:
             sigma = self.sigma  # TODO: Is it a good idea to leave it like this?
 
@@ -43,43 +66,51 @@ class Policy(torch.nn.Module):
 
 
 class Agent(object):
-    def __init__(self, policy, norm, baseline   ):
+    def __init__(self, policy, norm, baseline, value_fn):
         self.train_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
         self.policy = policy.to(self.train_device)
-        self.optimizer = torch.optim.RMSprop(policy.parameters(), lr=5e-3)
+        self.value_fn = value_fn.to(self.train_device)
+        self.optimizer = torch.optim.RMSprop(list(policy.parameters()) + list(value_fn.parameters()), lr=4e-3)
+
         self.gamma = 0.98
         self.states = []
+        self.values = []
         self.action_probs = []
         self.rewards = []
         self.baseline = baseline
         self.norm = norm
+        self.done = []
 
-    def episode_finished(self, episode_number):
+    def episode_finished(self):
         action_probs = torch.stack(self.action_probs, dim=0) \
             .to(self.train_device).squeeze(-1)
         rewards = torch.stack(self.rewards, dim=0).to(self.train_device).squeeze(-1)
-        self.states, self.action_probs, self.rewards = [], [], []
-
-        # TODO: Computact_log_probe discounted rewards (use the discount_rewards function)
-        discounter_r = discount_rewards(rewards, self.gamma)
+        done = self.done
+        if val is None:
+            val=0
+        discounter_r = discount_rewards(rewards, self.gamma, done, recurse=True, running_add=val)
+        values = torch.stack(self.values, 0).to(self.train_device).squeeze(-1)
         if self.norm:
             discounter_r = (discounter_r - torch.mean(discounter_r)) / torch.std(discounter_r)
+        self.states, self.action_probs, self.rewards, self.values, self.done = [], [], [], [], []
         # TODO: Compute critic loss and advantages (T3)
+        delta = discounter_r - values
+        policy_update = torch.mean(-delta.detach() * action_probs)
+        val_fn_update = torch.mean(torch.pow(delta, 2))
         # TODO: Compute the optimization term (T1, T3)
-        gammas = torch.tensor([self.gamma ** t for t in range(len(rewards))]).to(self.train_device)
-        update_term = -gammas * (discounter_r - self.baseline) * action_probs
-        update = update_term.sum()
+        total_update = val_fn_update + policy_update
         # TODO: Compute the gradients of loss w.r.t. network parameters (T1)
+        total_update.backward()
+        torch.nn.utils.clip_grad_norm(list(self.policy.parameters())+list(self.value_fn.parameters()), max_norm=0.8)
         # TODO: Update network parameters using self.optimizer and zero gradients (T1)
-        update.backward()
         self.optimizer.step()
         self.optimizer.zero_grad()
 
-    def get_action(self, observation, evaluation=False, ep=None):
+    def get_action(self, observation, evaluation=False):
         x = torch.from_numpy(observation).float().to(self.train_device)
         # TODO: Pass state x through the policy network (T1)
-        out_dist = self.policy(x, ep)
+        out_dist = self.policy(x)
         # TODO: Return mean if evaluation, else sample from the distribution
         # returned by the policy (T1)
         if evaluation:
@@ -92,7 +123,9 @@ class Agent(object):
 
         return action, act_log_prob
 
-    def store_outcome(self, observation, action_prob, action_taken, reward):
+    def store_outcome(self, observation, action_prob, action_taken, reward, value, done=None):
         self.states.append(observation)
         self.action_probs.append(action_prob)
         self.rewards.append(torch.Tensor([reward]))
+        self.values.append(value)
+        self.done.append(done)
