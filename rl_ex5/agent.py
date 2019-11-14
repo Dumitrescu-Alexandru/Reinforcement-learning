@@ -14,7 +14,7 @@ class Policy(torch.nn.Module):
         self.hidden = 64
         self.fc1 = torch.nn.Linear(state_space, self.hidden)
         self.fc2_mean = torch.nn.Linear(self.hidden, action_space)
-        self.sigma = torch.tensor([10], dtype=torch.float32,
+        self.sigma = torch.tensor([np.sqrt(5)], dtype=torch.float32,
                                   device=self.train_device)  # TODO: Implement accordingly (T1, T2)
         self.sigma_type = sigma_type
         if sigma_type == "learn_sigma":
@@ -32,7 +32,7 @@ class Policy(torch.nn.Module):
         x = F.relu(x)
         mu = self.fc2_mean(x)
         if self.sigma_type == "exp_decay":
-            sigma = self.sigma * np.exp(-5 * 10**(-4) * ep)
+            sigma = self.sigma * np.sqrt(np.exp(-5 * 10**(-4) * ep))
         else:
             sigma = self.sigma  # TODO: Is it a good idea to leave it like this?
 

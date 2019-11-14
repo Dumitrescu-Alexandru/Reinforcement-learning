@@ -3,7 +3,7 @@ import gym
 import numpy as np
 import argparse
 import matplotlib.pyplot as plt
-from ac_agent import Agent, Policy, Value
+from ac_agent import Agent, Policy
 from cp_cont import CartPoleEnv
 import pandas as pd
 
@@ -18,16 +18,14 @@ def train(env_name, print_things=True, train_run_id=0, train_episodes=5000):
     observation_space_dim = env.observation_space.shape[-1]
 
     # Instantiate agent and its policy
-    policy = Policy(observation_space_dim, action_space_dim, sigma_type=args.sigma_type)
-    value_fn = Value(observation_space_dim)
-    agent = Agent(policy, args.normalize_rewards, args.baseline, value_fn)
+    policy = Policy(observation_space_dim, action_space_dim, sigma_type=args.sigma_type, every_10=args.every_10)
+    agent = Agent(policy, args.normalize_rewards, args.baseline)
 
     # Arrays to keep track of rewards
     reward_history, timestep_history = [], []
     average_reward_history = []
 
     # Run actual training
-    t = 1
     batches_remain = 0
     for episode_number in range(train_episodes):
         reward_sum, timesteps = 0, 0
@@ -37,20 +35,23 @@ def train(env_name, print_things=True, train_run_id=0, train_episodes=5000):
         # Loop until the episode is over
         while not done:
             # Get action from the agent
-            action, action_probabilities = agent.get_action(observation)
-            observation_tensor = torch.from_numpy(observation).float().to(train_device)
-            value = agent.value_fn(observation_tensor)
+            action, action_probabilities, value = agent.get_action(observation)
+            # observation_tensor = torch.from_numpy(observation).float().to(train_device)
             previous_observation = observation
 
             # Perform the action on the environment, get new state and reward
             observation, reward, done, info = env.step(action.detach().cpu().numpy())
-           # Store action's outcome (so that the agent can improve its policy)
-            agent.store_outcome(previous_observation, action_probabilities, action, reward, value, done)
-
+            # Store action's outcome (so that the agent can improve its policy)
+            if args.every_10 and done:
+                agent.store_outcome(previous_observation, action_probabilities, action, reward, value, 1)
+            else:
+                agent.store_outcome(previous_observation, action_probabilities, action, reward, value, 0)
             # Store total episode reward
             reward_sum += reward
             timesteps += 1
             if args.every_10 and len(agent.states) == 10:
+                _, _, additional_value = agent.get_action(observation)
+                agent.add_last_val(additional_value)
                 agent.episode_finished()
 
         if print_things:

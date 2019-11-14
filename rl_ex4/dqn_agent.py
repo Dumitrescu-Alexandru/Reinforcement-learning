@@ -31,7 +31,6 @@ class DQN(nn.Module):
         return x
 
 
-
 class Agent(object):
     def __init__(self, state_space, n_actions, replay_buffer_size=50000,
                  batch_size=32, hidden_size=12, gamma=0.98):

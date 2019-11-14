@@ -123,8 +123,6 @@ if __name__ == "__main__":
                                                                                         "normalization")
     parser.add_argument("--baseline", type=int, default=0, help="Baseline to 0 (default=0 - no baseline)")
     parser.add_argument("--sigma_type", type=str, default="constant", help="Learn sigma as a model parameter")
-
-
     args = parser.parse_args()
 
     # If no model was passed, train a policy from scratch.
