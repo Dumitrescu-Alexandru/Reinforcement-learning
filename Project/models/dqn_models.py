@@ -1,5 +1,6 @@
 import numpy as np
 from collections import namedtuple
+import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -56,7 +57,7 @@ class DQN(nn.Module):
 
 class Agent(object):
     def __init__(self, n_actions, replay_buffer_size=50000,
-                 batch_size=32, hidden_size=18, gamma=0.98):
+                 batch_size=32, hidden_size=18, gamma=0.98, model_name="dqn_model"):
         self.train_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.n_actions = n_actions
         self.policy_net = DQN(hidden_size, train_device=self.train_device)
@@ -67,6 +68,7 @@ class Agent(object):
         self.memory = ReplayMemory(replay_buffer_size)
         self.batch_size = batch_size
         self.gamma = gamma
+        self.model_name = model_name
         self.policy_net.to(self.train_device)
         self.target_net.to(self.train_device)
 
@@ -121,6 +123,43 @@ class Agent(object):
             if param.requires_grad:
                 param.grad.data.clamp_(-1e-1, 1e-1)
         self.optimizer.step()
+
+    def load_model(self, path=""):
+        if path:
+            print("Loading model from the given path " + path)
+            self.policy_net.load_state_dict(torch.load(path))
+        elif os.path.isfile(self.model_name + ".pth"):
+            print("Loading the model " + self.model_name + " from the same folder.")
+            self.policy_net.load_state_dict(torch.load(self.model_name + ".pth"))
+        else:
+            print("Error: neither path to the model was not given, nor does the model "
+                  + self.model_name + " exist in the current folder path")
+            exit(1)
+        self.target_net.load_state_dict(self.policy_net.state_dict())
+
+    @staticmethod
+    def get_name():
+        return "Best Name"
+
+    def save_model(self, path="", epoch=None):
+
+        model_name = self.model_name + "_epoch_no_" + str(epoch) if epoch is not None else self.model_name
+        if path:
+            if path[-4:] == ".pth":
+                print("Full path and name were given for the model. Saving it in " + path)
+                torch.save(self.policy_net.state_dict(), path)
+            else:
+                print("Path without the file name were given. Saving it as " + path + self.model_name + ".pth")
+                torch.save(self.policy_net.state_dict(), path + "/" + model_name + ".pth")
+        else:
+            print("No path was given. Saving it in the same folder as this script, with the name "
+                  + model_name + ".pth")
+            torch.save(self.policy_net.state_dict(), model_name + ".pth")
+
+    def reset(self):
+        print("What the hell is reset on the agent supposed to do..? xD Isn't the env supposed to be outside the agent"
+              "class?")
+        pass
 
     def get_action(self, state, epsilon=0.05):
         sample = random.random()
