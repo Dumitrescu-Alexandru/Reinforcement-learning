@@ -15,19 +15,19 @@ class FeatExtractConv(nn.Module):
     def __init__(self, train_device=torch.device("cuda:0")):
         super(FeatExtractConv, self).__init__()
         self.train_device = train_device
-        self.conv1 = nn.Conv2d(3, 3, kernel_size=(7, 7), stride=1)
-        self.max_pool1 = nn.MaxPool2d(3, stride=2)
-        self.conv2 = nn.Conv2d(3, 3, kernel_size=(5, 5), stride=2)
-        self.max_pool2 = nn.MaxPool2d(3, stride=2)
-        self.conv3 = nn.Conv2d(3, 3, kernel_size=(5, 5), stride=2)
-        self.max_pool3 = nn.MaxPool2d(3, stride=2)
+        self.conv1 = nn.Conv2d(1, 1, kernel_size=(7, 7), stride=1)
+        self.max_pool1 = nn.MaxPool2d(2, stride=2)
+        self.conv2 = nn.Conv2d(1, 1, kernel_size=(5, 5), stride=2)
+        self.max_pool2 = nn.MaxPool2d(2, stride=2)
+        # self.conv3 = nn.Conv2d(3, 3, kernel_size=(5, 5), stride=2)
+        # self.max_pool3 = nn.MaxPool2d(2, stride=2)
         self.train_device = train_device
 
     def forward(self, x):
         x = x.to(self.train_device)
         x = F.relu6(self.max_pool1(self.conv1(x)))
         x = F.relu6(self.max_pool2(self.conv2(x)))
-        x = F.relu6(self.max_pool3(self.conv3(x)))
+        # x = F.relu6(self.max_pool3(self.conv3(x)))
         return x
 
 
@@ -43,14 +43,14 @@ class DQN(nn.Module):
             for p in self.feature_extractor.parameters():
                 p.requires_grad = False
 
-        self.hidden_layer = nn.Linear(3 * 16 * 4, hidden)
+        self.hidden_layer = nn.Linear(1 * 73 * 23, hidden)
         self.output = nn.Linear(hidden, 3)
 
     def forward(self, x):
         x = x.to(self.train_device)
-        x = self.feature_extractor(x.view(-1, 3, 600, 200))
-        x = F.relu(x.view(-1, 3 * 4 * 4 * 4))
-        x = self.hidden_layer(x)
+        x = self.feature_extractor(x.view(-1, 1, 600, 200))
+        x = x.view(-1, 1 * 73 * 23)
+        x = F.relu6(self.hidden_layer(x))
         x = self.output(x)
         return x
 
@@ -64,7 +64,7 @@ class Agent(object):
         self.target_net = DQN(hidden_size, train_device=self.train_device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
-        self.optimizer = optim.RMSprop(self.policy_net.parameters(), lr=1e-3)
+        self.optimizer = optim.RMSprop(self.policy_net.parameters(), lr=1e-4)
         self.memory = ReplayMemory(replay_buffer_size)
         self.batch_size = batch_size
         self.gamma = gamma
