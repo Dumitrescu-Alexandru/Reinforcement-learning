@@ -29,7 +29,7 @@ parser.add_argument("--switch_sides", default=False, action="store_true")
 parser.add_argument("--use_black_white", default=False, action="store_true")
 parser.add_argument("--down_sample", default=False, action="store_true")
 parser.add_argument("--save_dir", default='./', type=str, help="Directory to save models")
-parser.add_argument("--history",default=3,type=int,help="Number of previous frames in state")
+parser.add_argument("--history", default=3, type=int, help="Number of previous frames in state")
 args = parser.parse_args()
 
 # Make the environment
@@ -50,7 +50,8 @@ states = []
 win1 = 0
 ob1 = env.reset()
 player = Agent(n_actions=3, replay_buffer_size=args.replay_buffer_size,
-               batch_size=args.batch_size, hidden_size=12, gamma=0.98, history=args.history, down_sample=args.down_sample, gray_scale=args.use_black_white)
+               batch_size=args.batch_size, hidden_size=12, gamma=0.98, history=args.history,
+               down_sample=args.down_sample, gray_scale=args.use_black_white)
 if args.load_model:
     player.load_model(args.load_model)
 glie_a = 10000
@@ -72,6 +73,7 @@ def black_and_white(state_):
     # send only a (size,size) image
     return new_state[0]
 
+
 def preprocess(state_):
     if args.use_black_white:
         # if not already greyscale
@@ -82,10 +84,11 @@ def preprocess(state_):
     elif state_.shape[0] == 3:
         print("Something is wrong with color images")
         state_ = state_.transpose(1, 2, 0)
-    
+
     return state_
 
-def augment(state_list,m=3):
+
+def augment(state_list, m=3):
     # augment the sates with m previous image states
     channels = 1 if args.use_black_white else 3
 
@@ -96,19 +99,20 @@ def augment(state_list,m=3):
         augmented_state = np.vstack(state_list[-m:])
         # remove the old images
         state_list = state_list[-m:]
-    
+
     # copy the last state m times
     else:
         first_state = state_list[0]
-        temp = [first_state]*(m-len(state_list)) + state_list
+        temp = [first_state] * (m - len(state_list)) + state_list
         augmented_state = np.vstack(temp)
-    
+
     # just add a channel in the beginning for torch to play nice
-    if channels == 3 :
-        augmented_state = augmented_state.tranpose(2,0,1)
+    if channels == 3:
+        augmented_state = augmented_state.tranpose(2, 0, 1)
     elif channels == 1:
-        augmented_state = augmented_state[np.newaxis,:]
+        augmented_state = augmented_state[np.newaxis, :]
     return augmented_state
+
 
 for i in range(0, episodes):
     done = False
@@ -124,7 +128,7 @@ for i in range(0, episodes):
         # add the preprocessed image to list 
         state_list.append(preprocess(state))
         # get the history augmented state vector
-        augmented_state = augment(state_list,args.history)
+        augmented_state = augment(state_list, args.history)
 
         action = player.get_action(augmented_state, eps)
 
@@ -136,7 +140,7 @@ for i in range(0, episodes):
         cum_reward += rew1
 
         # get the augmented next state from the list
-        augmented_state_next_state = augment(state_list,args.history)
+        augmented_state_next_state = augment(state_list, args.history)
         # store the values 
         player.store_transition(augmented_state, action, augmented_state_next_state, rew1, done)
         player.update_network()

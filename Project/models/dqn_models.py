@@ -15,9 +15,9 @@ class FeatExtractConv(nn.Module):
     def __init__(self, train_device=torch.device("cuda:0"), channels=3):
         super(FeatExtractConv, self).__init__()
         self.train_device = train_device
-        self.conv1 = nn.Conv2d(channels, 1, kernel_size=(7, 7), stride=1)
+        self.conv1 = nn.Conv2d(channels, 32, kernel_size=(7, 7), stride=3)
         self.max_pool1 = nn.MaxPool2d(2, stride=2)
-        self.conv2 = nn.Conv2d(channels, 1, kernel_size=(5, 5), stride=2)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=(4, 4), stride=2)
         self.max_pool2 = nn.MaxPool2d(2, stride=2)
         # self.conv3 = nn.Conv2d(3, 3, kernel_size=(5, 5), stride=2)
         # self.max_pool3 = nn.MaxPool2d(2, stride=2)
@@ -33,28 +33,29 @@ class FeatExtractConv(nn.Module):
 
 class DQN(nn.Module):
     def __init__(self, hidden=18, fine_tune=True, train_device=torch.device("cuda:0"),
-                                                    history=3, down_sample=False, gray_scale=False):
+                 history=3, down_sample=False, gray_scale=False):
         super(DQN, self).__init__()
         self.train_device = train_device
         self.hidden = hidden
         self.history = history
-        channels = 1 if gray_scale else 3
-        down_factor = 4 if down_sample else 1
-        self.feature_extractor = FeatExtractConv(channels, down_sample)
+        self.channels = 1 if gray_scale else 3
+        self.down_factor = 4 if down_sample else 1
+        self.feature_extractor = FeatExtractConv(channels=self.channels)
         if not fine_tune:
             for p in self.feature_extractor.parameters():
                 p.requires_grad = False
 
-        self.hidden_layer = nn.Linear(1 * 17 * 4 * 4//down_sample, hidden)
+        self.hidden_layer = nn.Linear(64 * 7, hidden)
         self.output = nn.Linear(hidden, 3)
 
     def forward(self, x):
         x = x.to(self.train_device)
-        print(x.shape)
-        #self.history * 4 if not self.dow
-        x = self.feature_extractor(x.view(-1, 1, 150, 50))
-        x = x.view(-1, 1 * 17 * 4)
-        x = F.relu6(self.hidden_layer(x))
+        # self.history * 4 if not self.dow
+        x = self.feature_extractor(
+            x.view(-1, self.channels, self.history * (200 // self.down_factor), 200 // self.down_factor))
+        # print(x.shape)
+        # print(x.shape)
+        x = F.relu6(self.hidden_layer(x.view(-1, 64 * 7)))
         x = self.output(x)
         return x
 
@@ -63,12 +64,12 @@ class Agent(object):
     def __init__(self, n_actions, replay_buffer_size=50000,
                  batch_size=32, hidden_size=18, gamma=0.98, model_name="dqn_model",
                  history=3, down_sample=False, gray_scale=False):
-        self.train_device = torch.device("cuda:0" if torch.cuda.is_available`() else "cpu")
+        self.train_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.n_actions = n_actions
-        self.policy_net = DQN(hidden_size, self.train_device,
-                                        history, down_sample, gray_scale)
-        self.target_net = DQN(hidden_size, self.train_device,
-                                        history, down_sample, gray_scale)
+        self.policy_net = DQN(hidden=hidden_size, train_device=self.train_device,
+                              history=history, down_sample=down_sample, gray_scale=gray_scale)
+        self.target_net = DQN(hidden=hidden_size, train_device=self.train_device,
+                              history=history, down_sample=down_sample, gray_scale=gray_scale)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
         self.optimizer = optim.RMSprop(self.policy_net.parameters(), lr=1e-4)
