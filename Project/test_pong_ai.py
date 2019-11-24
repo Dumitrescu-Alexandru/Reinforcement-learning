@@ -55,16 +55,9 @@ avg_ttd = []
 
 
 def black_and_white(state_):
-    new_state = np.zeros((state_.shape[0], state_.shape[1]))
-
-    def is_background(pxl):
-        if pxl[0] == 43 and pxl[1] == 48 and pxl[2] == 58:
-            return True
-        return False
-
-    for ind_1, col in enumerate(state_):
-        for ind_2, pixel in enumerate(col):
-            new_state[ind_1, ind_2] = 0 if is_background(pixel) else 1
+    # grayscale weights for rgb
+    gray_weights = [0.299, 0.587, 0.114]
+    new_state = np.dot(state_,gray_weights)
     return new_state.reshape(1, new_state.shape[0], new_state.shape[1])
 
 
