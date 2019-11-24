@@ -50,7 +50,7 @@ states = []
 win1 = 0
 ob1 = env.reset()
 player = Agent(n_actions=3, replay_buffer_size=args.replay_buffer_size,
-               batch_size=args.batch_size, hidden_size=12, gamma=0.98)
+               batch_size=args.batch_size, hidden_size=12, gamma=0.98, history=args.history, down_sample=args.down_sample, gray_scale=args.use_black_white)
 if args.load_model:
     player.load_model(args.load_model)
 glie_a = 10000
