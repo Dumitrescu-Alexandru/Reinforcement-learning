@@ -28,7 +28,8 @@ parser.add_argument("--batch_size", type=int, default=32)
 parser.add_argument("--switch_sides", default=False, action="store_true")
 parser.add_argument("--use_black_white", default=False, action="store_true")
 parser.add_argument("--down_sample", default=False, action="store_true")
-parser.add_argument("--save_dir", default=Path(__file__).parent, type=Path, help="Directory to save models")
+parser.add_argument("--save_dir", default='./', type=str, help="Directory to save models")
+parser.add_argument("--history",default=3,type=int,help="Number of previous frames in state")
 args = parser.parse_args()
 
 # Make the environment
@@ -67,9 +68,47 @@ def black_and_white(state_):
         bin_size = input_size // output_size
         small_image = new_state.reshape((1, output_size, bin_size,
                                          output_size, bin_size)).max(4).max(2)
-        return small_image.reshape(1, small_image.shape[1], small_image.shape[2])
-    return new_state.reshape(1, new_state.shape[0], new_state.shape[1])
+        return small_image[0]
+    # send only a (size,size) image
+    return new_state[0]
 
+def preprocess(state_):
+    if args.use_black_white:
+        # if not already greyscale
+        if len(state_.shape) == 3:
+            state_ = black_and_white(state_)
+
+    # make rgb channels as last dim instead of first
+    elif state_.shape[0] == 3:
+        print("Something is wrong with color images")
+        state_ = state_.transpose(1, 2, 0)
+    
+    return state_
+
+def augment(state_list,m=3):
+    # augment the sates with m previous image states
+    channels = 1 if args.use_black_white else 3
+
+    img_size = state_list[-1].shape[1]
+
+    # if there are m previous images
+    if len(state_list) >= m:
+        augmented_state = np.vstack(state_list[-m:])
+        # remove the old images
+        state_list = state_list[-m:]
+    
+    # copy the last state m times
+    else:
+        first_state = state_list[0]
+        temp = [first_state]*(m-len(state_list)) + state_list
+        augmented_state = np.vstack(temp)
+    
+    # just add a channel in the beginning for torch to play nice
+    if channels == 3 :
+        augmented_state = augmented_state.tranpose(2,0,1)
+    elif channels == 1:
+        augmented_state = augmented_state[np.newaxis,:]
+    return augmented_state
 
 for i in range(0, episodes):
     done = False
@@ -82,30 +121,23 @@ for i in range(0, episodes):
     channels = 1 if args.use_black_white else 3
     while not done:
         ttd += 1
-        if args.use_black_white:
-            if state.shape[0] != 1:
-                state = black_and_white(state)
-                state_list.append(state)
-        else:
-            state_list.append(state.transpose(2, 0, 1))
-
-        # sugment the sates with uptp 3 previous images
-        if len(state_list) >= 3:
-            augmented_state = np.hstack(state_list[-3:]).reshape(channels, 150, 50)
-            state_list = state_list[-3:]
-        else:
-            augmented_state = np.hstack((state, state, state)).reshape(channels, 150, 50)
+        # add the preprocessed image to list 
+        state_list.append(preprocess(state))
+        # get the history augmented state vector
+        augmented_state = augment(state_list,args.history)
 
         action = player.get_action(augmented_state, eps)
 
         next_state, rew1, done, info = env.step(action)
-        next_state = black_and_white(next_state) if args.use_black_white else next_state
+        next_state = preprocess(next_state)
+        state_list.append(next_state)
+
         rew1 = -50 / ttd if rew1 == 0 and done else rew1
         cum_reward += rew1
 
-        augmented_state_next_state = augmented_state
-        augmented_state_next_state[:, :100, :] = augmented_state[:, 50:, :]
-        augmented_state_next_state[:, 100:, :] = next_state.reshape(channels, 50, 50)
+        # get the augmented next state from the list
+        augmented_state_next_state = augment(state_list,args.history)
+        # store the values 
         player.store_transition(augmented_state, action, augmented_state_next_state, rew1, done)
         player.update_network()
         if args.housekeeping:
