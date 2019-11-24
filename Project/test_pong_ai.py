@@ -13,6 +13,7 @@ import wimblepong
 import torch
 from models.dqn_models import Agent
 import pickle
+from pathlib import Path
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--headless", action="store_true", help="Run in headless mode")
@@ -26,7 +27,7 @@ parser.add_argument("--replay_buffer_size", type=int, default=5000)
 parser.add_argument("--batch_size", type=int, default=32)
 parser.add_argument("--switch_sides", default=False, action="store_true")
 parser.add_argument("--use_black_white", default=False, action="store_true")
-
+parser.add_argument("--save_dir", default=Path(__file__).parent, type=Path,help="Directory to save models")
 args = parser.parse_args()
 
 # Make the environment
@@ -67,27 +68,32 @@ for i in range(0, episodes):
     eps = glie_a / (glie_a + i)
     cum_reward = 0
     state_list = []
+    # time till death for a single game 
     ttd = 0
     channels = 1 if args.use_black_white else 3
     while not done:
         ttd += 1
-        # action1 is zero because in this example no agent is playing as player 0
         if args.use_black_white:
             if state.shape[-1] == 3 or state.shape[0] == 3:
                 state = black_and_white(state)
                 state_list.append(state)
         else:
             state_list.append(state.transpose(2, 0, 1))
+        
+        # sugment the sates with uptp 3 previous images
         if len(state_list) >= 3:
             augmented_state = np.hstack(state_list[-3:]).reshape(channels, 600, 200)
             state_list = state_list[-3:]
         else:
             augmented_state = np.hstack((state, state, state)).reshape(channels, 600, 200)
-        action = player.get_action(augmented_state, eps)  # player.get_action()
+
+        action = player.get_action(augmented_state, eps)
+
         next_state, rew1, done, info = env.step(action)
         next_state = black_and_white(next_state) if args.use_black_white else next_state
         rew1 = -50 / ttd if rew1 == 0 and done else rew1
         cum_reward += rew1
+
         augmented_state_next_state = augmented_state
         augmented_state_next_state[:, :400, :] = augmented_state[:, 200:, :]
         augmented_state_next_state[:, 400:, :] = next_state.reshape(channels, 200, 200)
@@ -109,7 +115,9 @@ for i in range(0, episodes):
                 plt.show()
                 states.clear()
             print("episode {} over. Broken WR: {:.3f}".format(i, win1 / (i + 1)))
+            
             avg_ttd.append(ttd)
+            # only keeping the last 50 time to deaths
             if len(avg_ttd) > 50:
                 del (avg_ttd[:len(avg_ttd) - 50])
             if len(avg_ttd) == 50:
@@ -119,6 +127,7 @@ for i in range(0, episodes):
         state = next_state
         if i % TARGET_UPDATE == 0:
             player.update_target_network()
+    # save the model
     if i % args.save_every == 0 and i != 0:
         print("HM")
-        player.save_model(epoch=i)
+        player.save_model(epoch=i,path=args.save_path)
