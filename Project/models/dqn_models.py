@@ -43,13 +43,13 @@ class DQN(nn.Module):
             for p in self.feature_extractor.parameters():
                 p.requires_grad = False
 
-        self.hidden_layer = nn.Linear(1 * 73 * 23, hidden)
+        self.hidden_layer = nn.Linear(1 * 17 * 4, hidden)
         self.output = nn.Linear(hidden, 3)
 
     def forward(self, x):
         x = x.to(self.train_device)
-        x = self.feature_extractor(x.view(-1, 1, 600, 200))
-        x = x.view(-1, 1 * 73 * 23)
+        x = self.feature_extractor(x.view(-1, 1, 150, 50))
+        x = x.view(-1, 1 * 17 * 4)
         x = F.relu6(self.hidden_layer(x))
         x = self.output(x)
         return x

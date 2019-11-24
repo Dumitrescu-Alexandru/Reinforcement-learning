@@ -27,7 +27,8 @@ parser.add_argument("--replay_buffer_size", type=int, default=5000)
 parser.add_argument("--batch_size", type=int, default=32)
 parser.add_argument("--switch_sides", default=False, action="store_true")
 parser.add_argument("--use_black_white", default=False, action="store_true")
-parser.add_argument("--save_dir", default=Path(__file__).parent, type=Path,help="Directory to save models")
+parser.add_argument("--down_sample", default=False, action="store_true")
+parser.add_argument("--save_dir", default=Path(__file__).parent, type=Path, help="Directory to save models")
 args = parser.parse_args()
 
 # Make the environment
@@ -58,7 +59,15 @@ avg_ttd = []
 def black_and_white(state_):
     # grayscale weights for rgb
     gray_weights = [0.299, 0.587, 0.114]
-    new_state = np.dot(state_,gray_weights)
+    new_state = np.dot(state_, gray_weights)
+    new_state = new_state.reshape(1, new_state.shape[0], new_state.shape[1])
+    if args.down_sample:
+        input_size = 200
+        output_size = 50
+        bin_size = input_size // output_size
+        small_image = new_state.reshape((1, output_size, bin_size,
+                                         output_size, bin_size)).max(4).max(2)
+        return small_image.reshape(1, small_image.shape[1], small_image.shape[2])
     return new_state.reshape(1, new_state.shape[0], new_state.shape[1])
 
 
@@ -74,18 +83,18 @@ for i in range(0, episodes):
     while not done:
         ttd += 1
         if args.use_black_white:
-            if state.shape[-1] == 3 or state.shape[0] == 3:
+            if state.shape[0] != 1:
                 state = black_and_white(state)
                 state_list.append(state)
         else:
             state_list.append(state.transpose(2, 0, 1))
-        
+
         # sugment the sates with uptp 3 previous images
         if len(state_list) >= 3:
-            augmented_state = np.hstack(state_list[-3:]).reshape(channels, 600, 200)
+            augmented_state = np.hstack(state_list[-3:]).reshape(channels, 150, 50)
             state_list = state_list[-3:]
         else:
-            augmented_state = np.hstack((state, state, state)).reshape(channels, 600, 200)
+            augmented_state = np.hstack((state, state, state)).reshape(channels, 150, 50)
 
         action = player.get_action(augmented_state, eps)
 
@@ -95,8 +104,8 @@ for i in range(0, episodes):
         cum_reward += rew1
 
         augmented_state_next_state = augmented_state
-        augmented_state_next_state[:, :400, :] = augmented_state[:, 200:, :]
-        augmented_state_next_state[:, 400:, :] = next_state.reshape(channels, 200, 200)
+        augmented_state_next_state[:, :100, :] = augmented_state[:, 50:, :]
+        augmented_state_next_state[:, 100:, :] = next_state.reshape(channels, 50, 50)
         player.store_transition(augmented_state, action, augmented_state_next_state, rew1, done)
         player.update_network()
         if args.housekeeping:
@@ -115,7 +124,7 @@ for i in range(0, episodes):
                 plt.show()
                 states.clear()
             print("episode {} over. Broken WR: {:.3f}".format(i, win1 / (i + 1)))
-            
+
             avg_ttd.append(ttd)
             # only keeping the last 50 time to deaths
             if len(avg_ttd) > 50:
@@ -130,4 +139,4 @@ for i in range(0, episodes):
     # save the model
     if i % args.save_every == 0 and i != 0:
         print("HM")
-        player.save_model(epoch=i,path=args.save_path)
+        player.save_model(epoch=i, path=args.save_dir)
