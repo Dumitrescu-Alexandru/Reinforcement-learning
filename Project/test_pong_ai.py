@@ -124,11 +124,10 @@ for i in range(0, episodes):
     # time till death for a single game 
     ttd = 0
     channels = 1 if args.use_black_white else 3
+    state_list.append(preprocess(state))
     while not done:
         ttd += 1
         # add the preprocessed image to list
-        if i == 0:
-            state_list.append(preprocess(state))
         # get the history augmented state vector
         augmented_state = augment(state_list, args.history)
         action = player.get_action(augmented_state, eps)
