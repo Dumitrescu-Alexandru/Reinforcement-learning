@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 import random
-from utils import Transition, ReplayMemory
+from utils import Transition, ReplayMemory, discount_rewards
 import torchvision.models as models
 from time import time
 
@@ -15,8 +15,8 @@ class FeatExtractConv(nn.Module):
     def __init__(self, train_device=torch.device("cuda:0"), channels=3):
         super(FeatExtractConv, self).__init__()
         self.train_device = train_device
-        self.conv1 = nn.Conv2d(channels, 32, kernel_size=(7, 7), stride=1)
-        self.conv2 = nn.Conv2d(32, 32, kernel_size=(5, 5), stride=1)
+        self.conv1 = nn.Conv2d(channels, 4, kernel_size=(7, 7), stride=1)
+        self.conv2 = nn.Conv2d(4, 1, kernel_size=(5, 5), stride=1)
         # self.max_pool1 = nn.MaxPool2d(2, stride=2)
         # self.conv2 = nn.Conv2d(16, 32, kernel_size=(4, 4), stride=2)
         # self.max_pool2 = nn.MaxPool2d(2, stride=2)
@@ -29,17 +29,16 @@ class FeatExtractConv(nn.Module):
         x = F.relu6(self.conv1(x))
         x = F.max_pool2d(x, kernel_size=2)
         x = F.relu6(self.conv2(x))
-        x = F.max_pool2d(x, kernel_size=2)
         # x = F.relu6(self.max_pool1(self.conv1(x)))
         # x = F.relu6(self.max_pool2(self.conv2(x)))
         # x = F.relu6(self.max_pool3(self.conv3(x)))
         return x
 
 
-class DQN(nn.Module):
+class Policy(nn.Module):
     def __init__(self, hidden=100, fine_tune=True, train_device=torch.device("cuda:0"),
                  history=3, down_sample=False, gray_scale=False):
-        super(DQN, self).__init__()
+        super(Policy, self).__init__()
         self.train_device = train_device
         self.hidden = hidden
         self.history = history
@@ -51,19 +50,22 @@ class DQN(nn.Module):
             for p in self.feature_extractor.parameters():
                 p.requires_grad = False
 
-        self.hidden_layer = nn.Linear(32 * 34 * 9, hidden)
+        self.hidden_layer = nn.Linear(1 * 68 * 18, hidden)
         self.output = nn.Linear(hidden, 3)
+        self.value = nn.Linear(hidden, 1)
 
     def forward(self, x):
-        x = x.to(self.train_device)
+        x = torch.tensor(x, device=self.train_device, dtype=torch.float32)
         # self.history * 4 if not self.dow
-        # x = self.feature_extractor(
-        #     x.view(-1, self.channels, self.history * (200 // self.down_factor), 200 // self.down_factor))
-        x = F.relu6(self.feature_extractor(x))
-        x = F.relu6(self.hidden_layer(x.view(-1,  32 * 34 * 9)))
-        # x = F.relu6(self.hidden_layer(x.view(-1, 2 * 48 * 15)))
-        x = self.output(x)
-        return x
+        x = self.feature_extractor(
+            x.view(-1, self.channels, self.history * (200 // self.down_factor), 200 // self.down_factor))
+        # x = F.relu6(self.feature_extractor(x.view(-1, 3 * 2500)))
+        # print(x.shape)
+        # x = F.relu6(self.hidden_layer(x))
+        x = F.relu6(self.hidden_layer(x.view(-1, 1 * 68 * 18)))
+        probs = F.log_softmax(self.output(x))
+        val = self.value(x)
+        return probs, val
 
 
 class Agent(object):
@@ -72,71 +74,52 @@ class Agent(object):
                  history=3, down_sample=False, gray_scale=False):
         self.train_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.n_actions = n_actions
-        self.policy_net = DQN(hidden=hidden_size, train_device=self.train_device,
-                              history=history, down_sample=down_sample, gray_scale=gray_scale)
-        self.target_net = DQN(hidden=hidden_size, train_device=self.train_device,
-                              history=history, down_sample=down_sample, gray_scale=gray_scale)
-        self.target_net.load_state_dict(self.policy_net.state_dict())
-        self.target_net.eval()
+        self.policy_net = Policy(hidden=hidden_size, train_device=self.train_device,
+                                 history=history, down_sample=down_sample, gray_scale=gray_scale)
         self.optimizer = optim.RMSprop(self.policy_net.parameters(), lr=1e-4)
         self.memory = ReplayMemory(replay_buffer_size)
         self.batch_size = batch_size
         self.gamma = gamma
         self.model_name = model_name
         self.policy_net.to(self.train_device)
-        self.target_net.to(self.train_device)
-
+        self.states = []
+        self.action_probs = []
+        self.rewards = []
+        self.values = []
+        
     def update_network(self, updates=1):
         for _ in range(updates):
             self._do_network_update()
 
     def _do_network_update(self):
-        if len(self.memory) < self.batch_size:
-            return
-
-        transitions = self.memory.sample(self.batch_size)
-        # Transpose the batch (see https://stackoverflow.com/a/19343/3343043 for
-        # detailed explanation). This converts batch-array of Transitions
-        # to Transition of batch-arrays.
-        batch = Transition(*zip(*transitions))
-        # Compute a mask of non-final states and concatenate the batch elements
-        # (a final state would've been the one after which simulation ended)
-        non_final_mask = ~torch.tensor(batch.done)
-        non_final_next_states = [s for nonfinal, s in zip(non_final_mask,
-                                                          batch.next_state) if nonfinal > 0]
-        non_final_next_states = torch.stack(non_final_next_states)
-        state_batch = torch.stack(batch.state)
-        action_batch = torch.cat(batch.action).to(self.train_device)
-        reward_batch = torch.cat(batch.reward).to(self.train_device)
-
-        # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
-        # columns of actions taken. These are the actions which would've been taken
-        # for each batch state according to policy_net
-
-        state_action_values = self.policy_net(state_batch).gather(1, action_batch)
-
-        # Compute V(s_{t+1}) for all next states.
-        # Expected values of actions for non_final_next_states are computed based
-        # on the "older" target_net; selecting their best reward with max(1)[0].
-        # This is merged based on the mask, such that we'll have either the expected
-        # state value or 0 in case the state was final.
-        next_state_values = torch.zeros(self.batch_size).to(self.train_device)
-        next_state_values[non_final_mask.bool()] = self.target_net(non_final_next_states).max(1)[0].detach()
-
-        # Task 4: TODO: Compute the expected Q values
-        expected_state_action_values = self.gamma * next_state_values + reward_batch
-
-        # Compute Huber loss
-        loss = F.smooth_l1_loss(state_action_values.squeeze(),
-                                expected_state_action_values)
-
-        # Optimize the model
-        self.optimizer.zero_grad()
-        loss.backward()
-        for param in self.policy_net.parameters():
-            if param.requires_grad:
-                param.grad.data.clamp_(-1e-1, 1e-1)
+        action_probs = torch.stack(self.action_probs, dim=0) \
+            .to(self.train_device).squeeze(-1)
+        rewards = torch.stack(self.rewards, dim=0).to(self.train_device).squeeze(-1)
+        values = torch.stack(self.values, 0).to(self.train_device).squeeze(-1)
+        self.states, self.action_probs, self.rewards, self.values = [], [], [], []
+        # TODO: Compute critic loss and advantages (T3)
+        # if self.policy.every_10:
+        #     end_states = np.array(end_states)
+        #     next_vals = torch.cat((values[1:], self.last_val))
+        #     next_vals[end_states == 1] = 0
+        #     delta = rewards + self.gamma * next_vals - values
+        #     policy_update = torch.mean(-delta.detach() * action_probs)
+        #     val_fn_update = torch.mean(-delta.detach() * values)
+        #     # val_fn_update = torch.mean(-delta * values)
+        if 1 ==0:
+            pass
+        else:
+            next_vals = torch.cat((values[1:].view(-1), torch.tensor([0.], device=self.train_device)))
+            delta = rewards + self.gamma * next_vals - values
+            policy_update = torch.mean(-delta.detach() * action_probs)
+            val_fn_update = torch.mean(-delta.detach() * values)
+        # TODO: Compute the optimization term (T1, T3)
+        total_update = val_fn_update + policy_update
+        # TODO: Compute the gradients of loss w.r.t. network parameters (T1)
+        total_update.backward()
+        # TODO: Update network parameters using self.optimizer and zero gradients (T1)
         self.optimizer.step()
+        self.optimizer.zero_grad()
 
     def load_model(self, path=""):
         if path:
@@ -175,22 +158,21 @@ class Agent(object):
               "class?")
         pass
 
-    def get_action(self, state, epsilon=0.05):
-        sample = random.random()
-        if sample > epsilon:
-            with torch.no_grad():
-                state = torch.from_numpy(state).float()
-                q_values = self.policy_net(state)
-                return torch.argmax(q_values).item()
-        else:
-            return random.randrange(self.n_actions)
+    def get_action(self, observation, evaluation=False):
+
+        # TODO: Pass state x through the policy network (T1)
+        act_prob, val = self.policy_net(observation)
+        act = torch.exp(act_prob).multinomial(num_samples=1).data[0]
+        return act, act_prob[0, act[0]], val
 
     def update_target_network(self):
         self.target_net.load_state_dict(self.policy_net.state_dict())
 
-    def store_transition(self, state, action, next_state, reward, done):
-        action = torch.Tensor([[action]]).long()
-        reward = torch.tensor([reward], dtype=torch.float32)
-        next_state = torch.from_numpy(next_state).float()
-        state = torch.from_numpy(state).float()
-        self.memory.push(state, action, next_state, reward, done)
+    def store_outcome(self, observation, action_prob, reward, value, end_state=None):
+        # print(len(self.states))
+        self.states.append(observation)
+        self.action_probs.append(action_prob)
+        self.rewards.append(torch.Tensor([reward]))
+        self.values.append(value)
+        if end_state is not None:
+            self.end_states.append(end_state)
