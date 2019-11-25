@@ -1,13 +1,14 @@
 # Baby Advantage Actor-Critic | Sam Greydanus | October 2017 | MIT License
 
 from __future__ import print_function
-import wimblepong
 import torch, os, gym, time, glob, argparse, sys
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal import lfilter
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.multiprocessing as mp
+import wimblepong
 os.environ['OMP_NUM_THREADS'] = '1'
 
 def get_args():
@@ -196,7 +197,7 @@ def train(shared_model, shared_optimizer, rank, args, info):
 
 if __name__ == "__main__":
     if sys.version_info[0] > 2:
-        mp.set_start_method('spawn') # this must not be in global scope
+        mp.set_start_method('spawn',force=True) # this must not be in global scope
     elif sys.platform == 'linux' or sys.platform == 'linux2':
         raise "Must be using Python 3 with linux!" # or else you get a deadlock in conv2d
     
@@ -205,7 +206,7 @@ if __name__ == "__main__":
     args.save_dir = '{}/'.format('models') # keep the directory structure simple
     if args.render:  args.processes = 1 ; args.test = True # render mode -> test mode w one process
     if args.test:  args.lr = 0 # don't train in render mode
-    args.num_actions = gym.make("WimblepongVisualSimpleAI-v0").action_space.n # get the action space of this game
+    args.num_actions = 3 # get the action space of this game
     os.makedirs(args.save_dir) if not os.path.exists(args.save_dir) else None # make dir to save models etc.
 
     torch.manual_seed(args.seed)
