@@ -55,7 +55,7 @@ player = Agent(n_actions=3, replay_buffer_size=args.replay_buffer_size,
                down_sample=args.down_sample, gray_scale=args.use_black_white)
 if args.load_model:
     player.load_model(args.load_model)
-glie_a = 10000
+glie_a = 1000000
 avg_ttd = []
 
 
@@ -115,10 +115,11 @@ def augment(state_list, m=3):
     return augmented_state
 
 
+frames =0
 for i in range(0, episodes):
     done = False
     state = env.reset()
-    eps = glie_a / (glie_a + i)
+    eps = glie_a / (glie_a + frames)
     cum_reward = 0
     state_list = []
     # time till death for a single game 
@@ -129,7 +130,9 @@ for i in range(0, episodes):
         ttd += 1
         # add the preprocessed image to list
         # get the history augmented state vector
+
         augmented_state = augment(state_list, args.history)
+        print(augmented_state.shape)
         action = player.get_action(augmented_state, eps)
         for _ in range(args.step_multiple):
             next_state, rew1, done, info = env.step(action)
@@ -139,6 +142,8 @@ for i in range(0, episodes):
             augmented_state_next_state = augment(state_list, args.history)
             rew1 = 0.05 if not done else rew1
             player.store_transition(augmented_state, action, augmented_state_next_state, rew1, done)
+            
+            augmented_state = augmented_state_next_state
 
             if not args.headless:
                 env.render()
@@ -164,7 +169,8 @@ for i in range(0, episodes):
                 states.clear()
             print("episode {} over. Broken WR: {:.3f}".format(i, win1 / (i + 1)))
 
-            avg_ttd.append(ttd)
+            avg_ttd.append(ttd*args.history)
+            frames += (ttd*args.history)
             # only keeping the last 50 time to deaths
             if len(avg_ttd) > 50:
                 del (avg_ttd[:len(avg_ttd) - 50])
