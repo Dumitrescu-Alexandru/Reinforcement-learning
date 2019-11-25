@@ -137,8 +137,11 @@ for i in range(0, episodes):
             state_list.append(next_state)
             cum_reward += rew1
             augmented_state_next_state = augment(state_list, args.history)
-            rew1 = -50 / ttd if rew1 == 0 and done else rew1
+            rew1 = 0.05 if not done else rew1
             player.store_transition(augmented_state, action, augmented_state_next_state, rew1, done)
+
+            if not args.headless:
+                env.render()
             if done:
                 break
 
@@ -151,8 +154,6 @@ for i in range(0, episodes):
         # Count the wins
         if rew1 == 10:
             win1 += 1
-        # if not args.headless:
-        #     env.render()
         if done:
             observation = env.reset()
             plt.close()  # Hides game window
