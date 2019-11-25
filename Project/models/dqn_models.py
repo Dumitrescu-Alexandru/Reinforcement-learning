@@ -15,24 +15,25 @@ class FeatExtractConv(nn.Module):
     def __init__(self, train_device=torch.device("cuda:0"), channels=3):
         super(FeatExtractConv, self).__init__()
         self.train_device = train_device
-        self.conv1 = nn.Conv2d(channels, 32, kernel_size=(7, 7), stride=3)
-        self.max_pool1 = nn.MaxPool2d(2, stride=2)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=(4, 4), stride=2)
-        self.max_pool2 = nn.MaxPool2d(2, stride=2)
+        self.conv1 = nn.Conv2d(channels, 2, kernel_size=(7, 7), stride=3)
+        # self.max_pool1 = nn.MaxPool2d(2, stride=2)
+        # self.conv2 = nn.Conv2d(16, 32, kernel_size=(4, 4), stride=2)
+        # self.max_pool2 = nn.MaxPool2d(2, stride=2)
         # self.conv3 = nn.Conv2d(3, 3, kernel_size=(5, 5), stride=2)
         # self.max_pool3 = nn.MaxPool2d(2, stride=2)
         self.train_device = train_device
 
     def forward(self, x):
         x = x.to(self.train_device)
-        x = F.relu6(self.max_pool1(self.conv1(x)))
-        x = F.relu6(self.max_pool2(self.conv2(x)))
+        x = F.relu6(self.conv1(x))
+        # x = F.relu6(self.max_pool1(self.conv1(x)))
+        # x = F.relu6(self.max_pool2(self.conv2(x)))
         # x = F.relu6(self.max_pool3(self.conv3(x)))
         return x
 
 
 class DQN(nn.Module):
-    def __init__(self, hidden=18, fine_tune=True, train_device=torch.device("cuda:0"),
+    def __init__(self, hidden=100, fine_tune=True, train_device=torch.device("cuda:0"),
                  history=3, down_sample=False, gray_scale=False):
         super(DQN, self).__init__()
         self.train_device = train_device
@@ -45,7 +46,7 @@ class DQN(nn.Module):
             for p in self.feature_extractor.parameters():
                 p.requires_grad = False
 
-        self.hidden_layer = nn.Linear(64 * 7, hidden)
+        self.hidden_layer = nn.Linear(2 * 48 * 15, hidden)
         self.output = nn.Linear(hidden, 3)
 
     def forward(self, x):
@@ -54,8 +55,8 @@ class DQN(nn.Module):
         x = self.feature_extractor(
             x.view(-1, self.channels, self.history * (200 // self.down_factor), 200 // self.down_factor))
         # print(x.shape)
-        # print(x.shape)
-        x = F.relu6(self.hidden_layer(x.view(-1, 64 * 7)))
+        
+        x = F.relu6(self.hidden_layer(x.view(-1, 2 * 48 * 15)))
         x = self.output(x)
         return x
 

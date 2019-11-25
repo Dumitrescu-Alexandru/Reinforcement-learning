@@ -30,6 +30,7 @@ parser.add_argument("--use_black_white", default=False, action="store_true")
 parser.add_argument("--down_sample", default=False, action="store_true")
 parser.add_argument("--save_dir", default='./', type=str, help="Directory to save models")
 parser.add_argument("--history", default=3, type=int, help="Number of previous frames in state")
+parser.add_argument("--step_multiple", default=1, type=int, help="Number times to step with the same action")
 args = parser.parse_args()
 
 # Make the environment
@@ -129,20 +130,21 @@ for i in range(0, episodes):
         state_list.append(preprocess(state))
         # get the history augmented state vector
         augmented_state = augment(state_list, args.history)
-
         action = player.get_action(augmented_state, eps)
+        for _ in range(args.step_multiple):
+            next_state, rew1, done, info = env.step(action)
+            next_state = preprocess(next_state)
+            state_list.append(next_state)
+            cum_reward += rew1
+            augmented_state_next_state = augment(state_list, args.history)
+            rew1 = -50 / ttd if rew1 == 0 and done else rew1
+            player.store_transition(augmented_state, action, augmented_state_next_state, rew1, done)
+            if done:
+                break
 
-        next_state, rew1, done, info = env.step(action)
-        next_state = preprocess(next_state)
-        state_list.append(next_state)
-
-        rew1 = -50 / ttd if rew1 == 0 and done else rew1
-        cum_reward += rew1
 
         # get the augmented next state from the list
-        augmented_state_next_state = augment(state_list, args.history)
         # store the values 
-        player.store_transition(augmented_state, action, augmented_state_next_state, rew1, done)
         player.update_network()
         if args.housekeeping:
             states.append(ob1)
