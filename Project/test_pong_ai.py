@@ -119,7 +119,7 @@ frames =0
 for i in range(0, episodes):
     done = False
     state = env.reset()
-    eps = glie_a / (glie_a + frames)
+    eps = max(0.1, (glie_a - frames) / glie_a)
     cum_reward = 0
     state_list = []
     # time till death for a single game 
@@ -132,7 +132,6 @@ for i in range(0, episodes):
         # get the history augmented state vector
 
         augmented_state = augment(state_list, args.history)
-        print(augmented_state.shape)
         action = player.get_action(augmented_state, eps)
         for _ in range(args.step_multiple):
             next_state, rew1, done, info = env.step(action)

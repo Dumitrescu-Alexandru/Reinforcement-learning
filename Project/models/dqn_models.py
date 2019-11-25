@@ -180,7 +180,7 @@ class Agent(object):
         if sample > epsilon:
             with torch.no_grad():
                 state = torch.from_numpy(state).float()
-                q_values = self.policy_net(state)
+                q_values = self.policy_net(state.unsqueeze(0))
                 return torch.argmax(q_values).item()
         else:
             return random.randrange(self.n_actions)
