@@ -126,8 +126,9 @@ for i in range(0, episodes):
     channels = 1 if args.use_black_white else 3
     while not done:
         ttd += 1
-        # add the preprocessed image to list 
-        state_list.append(preprocess(state))
+        # add the preprocessed image to list
+        if i == 0:
+            state_list.append(preprocess(state))
         # get the history augmented state vector
         augmented_state = augment(state_list, args.history)
         action = player.get_action(augmented_state, eps)
