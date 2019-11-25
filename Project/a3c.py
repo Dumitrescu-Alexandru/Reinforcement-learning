@@ -45,7 +45,7 @@ def black_and_white(state_):
     bin_size = input_size // output_size
     small_image = new_state.reshape((1, output_size, bin_size,
                                         output_size, bin_size)).max(4).max(2)
-    return small_image[0]
+    return small_image
 
 
 def preprocess(state_):
@@ -53,7 +53,7 @@ def preprocess(state_):
     if len(state_.shape) == 3:
         state_ = black_and_white(state_)
 
-    return state_
+    return state_.astype(np.float32)
 
 prepro = preprocess
 
@@ -67,7 +67,7 @@ class NNPolicy(nn.Module): # an actor-critic neural network
         self.conv2 = nn.Conv2d(32, 32, 3, stride=2, padding=1)
         self.conv3 = nn.Conv2d(32, 32, 3, stride=2, padding=1)
         self.conv4 = nn.Conv2d(32, 32, 3, stride=2, padding=1)
-        self.gru = nn.GRUCell(32 * 5 * 5, memsize)
+        self.gru = nn.GRUCell(32 * 4 * 4, memsize)
         self.critic_linear, self.actor_linear = nn.Linear(memsize, 1), nn.Linear(memsize, num_actions)
 
     def forward(self, inputs, train=True, hard=False):
@@ -76,7 +76,7 @@ class NNPolicy(nn.Module): # an actor-critic neural network
         x = F.elu(self.conv2(x))
         x = F.elu(self.conv3(x))
         x = F.elu(self.conv4(x))
-        hx = self.gru(x.view(-1, 32 * 5 * 5), (hx))
+        hx = self.gru(x.view(-1, 32 * 4 * 4), (hx))
         return self.critic_linear(hx), self.actor_linear(hx), hx
 
     def try_load(self, save_dir):
@@ -145,7 +145,7 @@ def train(shared_model, shared_optimizer, rank, args, info):
 
         for step in range(args.rnn_steps):
             episode_length += 1
-            value, logit, hx = model((state.view(1,1,80,80), hx))
+            value, logit, hx = model((state.view(1,1,50,50), hx))
             logp = F.log_softmax(logit, dim=-1)
 
             action = torch.exp(logp).multinomial(num_samples=1).data[0]#logp.max(1)[1].data if args.test else
@@ -153,7 +153,8 @@ def train(shared_model, shared_optimizer, rank, args, info):
             if reward == 10 : win1+=1
             
             if args.render: env.render()
-
+            
+            # reward = 0.01 if not done else reward
             state = torch.tensor(prepro(state)) ; epr += reward
             reward = np.clip(reward, -1, 1) # reward
             done = done or episode_length >= 1e4 # don't playing one ep for too long
@@ -179,7 +180,11 @@ def train(shared_model, shared_optimizer, rank, args, info):
             if done: # maybe print info.
                 episode_length, epr, eploss = 0, 0, 0
                 state = torch.tensor(prepro(env.reset()))
-                print("episode {} over. Broken WR: {:.3f}".format(info['episodes'], win1/(info['episodes']+1)))
+                print("episode {} over. Broken WR: {:.3f} Loss: {:.3f}".format(
+                    info['episodes'].item(),
+                    win1/(info['episodes'].item()+1),
+                    info['run_loss'].item()
+                    ))
 
             values.append(value) ; logps.append(logp) ; actions.append(action) ; rewards.append(reward)
 
@@ -197,7 +202,7 @@ def train(shared_model, shared_optimizer, rank, args, info):
 
 if __name__ == "__main__":
     if sys.version_info[0] > 2:
-        mp.set_start_method('spawn',force=True) # this must not be in global scope
+        mp.set_start_method('spawn') # this must not be in global scope
     elif sys.platform == 'linux' or sys.platform == 'linux2':
         raise "Must be using Python 3 with linux!" # or else you get a deadlock in conv2d
     
