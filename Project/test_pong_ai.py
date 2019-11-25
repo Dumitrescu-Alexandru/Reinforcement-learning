@@ -168,8 +168,8 @@ for i in range(0, episodes):
                 states.clear()
             print("episode {} over. Broken WR: {:.3f}".format(i, win1 / (i + 1)))
 
-            avg_ttd.append(ttd*args.history)
-            frames += (ttd*args.history)
+            avg_ttd.append(ttd*args.step_multiple)
+            frames += (ttd*args.step_multiple)
             # only keeping the last 50 time to deaths
             if len(avg_ttd) > 50:
                 del (avg_ttd[:len(avg_ttd) - 50])
