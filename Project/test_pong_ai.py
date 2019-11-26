@@ -31,7 +31,10 @@ parser.add_argument("--down_sample", default=False, action="store_true")
 parser.add_argument("--save_dir", default='./', type=str, help="Directory to save models")
 parser.add_argument("--history", default=3, type=int, help="Number of previous frames in state")
 parser.add_argument("--step_multiple", default=1, type=int, help="Number times to step with the same action")
-parser.add_argument("--test", default=False, action="store_true", help="Number times to step with the same action")
+parser.add_argument("--test", default=False, action="store_true", help="Freeze the model and set eps to 0")
+parser.add_argument("--lr", default=1e-5, type=float, help="Learning rate for the optimizer")
+parser.add_argument("--reward", default="incentivise_ttd", type=str, help="Learning rate for the optimizer")
+parser.add_argument("--glie_a", default=2000000, type=int, help="Learning rate for the optimizer")
 args = parser.parse_args()
 
 # Make the environment
@@ -53,13 +56,15 @@ win1 = 0
 ob1 = env.reset()
 player = Agent(n_actions=3, replay_buffer_size=args.replay_buffer_size,
                batch_size=args.batch_size, hidden_size=12, gamma=0.98, history=args.history,
-               down_sample=args.down_sample, gray_scale=args.use_black_white)
+               down_sample=args.down_sample, gray_scale=args.use_black_white, lr=args.lr)
 if args.load_model:
     player.load_model(args.load_model)
-glie_a = 2000000
+glie_a = args.glie_a
 avg_ttd = []
-avg_wr =[]
+avg_wr = []
 
+def get_reward(rew):
+    if args
 
 def black_and_white(state_):
     # grayscale weights for rgb
@@ -165,7 +170,7 @@ for i in range(0, episodes):
         if rew1 == 10:
             win1 += 1
         if done:
-            avg_wr.append(rew1/10)
+            avg_wr.append(rew1 / 10)
             observation = env.reset()
             plt.close()  # Hides game window
             if args.housekeeping:
@@ -183,8 +188,9 @@ for i in range(0, episodes):
             if len(avg_ttd) > 50:
                 del (avg_ttd[:len(avg_ttd) - 50])
             if len(avg_ttd) == 50 or len(avg_wr) == 1000:
-                print("episode {} over. Time till death (Average on last 50): {} and WR: {:.3f}".format(i, sum(avg_ttd) / 50,np.mean(avg_wr)))
-            
+                print("episode {} over. Time till death (Average on last 50): {} and WR: {:.3f}".format(i, sum(
+                    avg_ttd) / 50, np.mean(avg_wr)))
+
             if i % 5 == 4 and args.switch_sides:
                 env.switch_sides()
         state = next_state

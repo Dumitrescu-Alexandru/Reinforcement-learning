@@ -69,7 +69,8 @@ class DQN(nn.Module):
 class Agent(object):
     def __init__(self, n_actions, replay_buffer_size=50000,
                  batch_size=32, hidden_size=18, gamma=0.98, model_name="dqn_model",
-                 history=3, down_sample=False, gray_scale=False):
+                 history=3, down_sample=False, gray_scale=False, lr=1e-5):
+        self.lr = lr
         self.train_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.n_actions = n_actions
         self.policy_net = DQN(hidden=hidden_size, train_device=self.train_device,
@@ -78,7 +79,7 @@ class Agent(object):
                               history=history, down_sample=down_sample, gray_scale=gray_scale)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
-        self.optimizer = optim.RMSprop(self.policy_net.parameters(), lr=1e-5)
+        self.optimizer = optim.RMSprop(self.policy_net.parameters(), lr=self.lr)
         self.memory = ReplayMemory(replay_buffer_size)
         self.batch_size = batch_size
         self.gamma = gamma
