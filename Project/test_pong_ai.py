@@ -183,7 +183,7 @@ for i in range(0, episodes):
             if len(avg_ttd) > 50:
                 del (avg_ttd[:len(avg_ttd) - 50])
             if len(avg_ttd) == 50 or len(avg_wr) == 1000:
-                print("episode {} over. Time till death (Average on last 50): {} and WR: {}".format(i, sum(avg_ttd) / 50,np.mean(avg_wr)))
+                print("episode {} over. Time till death (Average on last 50): {} and WR: {:.3f}".format(i, sum(avg_ttd) / 50,np.mean(avg_wr)))
             
             if i % 5 == 4 and args.switch_sides:
                 env.switch_sides()
