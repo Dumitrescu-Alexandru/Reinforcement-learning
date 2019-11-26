@@ -31,7 +31,8 @@ parser.add_argument("--down_sample", default=False, action="store_true")
 parser.add_argument("--save_dir", default='./', type=str, help="Directory to save models")
 parser.add_argument("--history", default=3, type=int, help="Number of previous frames in state")
 parser.add_argument("--step_multiple", default=1, type=int, help="Number times to step with the same action")
-parser.add_argument("--test", default=False, action="store_true", help="Number times to step with the same action")
+parser.add_argument("--test", default=False, action="store_true", help="Freeze the model and set eps to 0")
+parser.add_argument("--lr", default=1e-5, type=float, help="Learning rate for the optimizer")
 args = parser.parse_args()
 
 # Make the environment
@@ -53,7 +54,7 @@ win1 = 0
 ob1 = env.reset()
 player = Agent(n_actions=3, replay_buffer_size=args.replay_buffer_size,
                batch_size=args.batch_size, hidden_size=12, gamma=0.98, history=args.history,
-               down_sample=args.down_sample, gray_scale=args.use_black_white)
+               down_sample=args.down_sample, gray_scale=args.use_black_white, lr=args.lr)
 if args.load_model:
     player.load_model(args.load_model)
 glie_a = 2000000
