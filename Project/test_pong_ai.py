@@ -58,6 +58,7 @@ if args.load_model:
     player.load_model(args.load_model)
 glie_a = 2000000
 avg_ttd = []
+avg_wr =[]
 
 
 def black_and_white(state_):
@@ -164,6 +165,7 @@ for i in range(0, episodes):
         if rew1 == 10:
             win1 += 1
         if done:
+            avg_wr.append(rew1/10)
             observation = env.reset()
             plt.close()  # Hides game window
             if args.housekeeping:
@@ -176,10 +178,13 @@ for i in range(0, episodes):
             avg_ttd.append(ttd * args.step_multiple)
             frames += (ttd * args.step_multiple)
             # only keeping the last 50 time to deaths
+            if len(avg_wr) > 1000:
+                del (avg_wr[:-1000])
             if len(avg_ttd) > 50:
                 del (avg_ttd[:len(avg_ttd) - 50])
-            if len(avg_ttd) == 50:
-                print("episode {} over. Time till death (Average on last 50): {}".format(i, sum(avg_ttd) / 50))
+            if len(avg_ttd) == 50 or len(avg_wr) == 1000:
+                print("episode {} over. Time till death (Average on last 50): {} and WR: {:.3f}".format(i, sum(avg_ttd) / 50,np.mean(avg_wr)))
+            
             if i % 5 == 4 and args.switch_sides:
                 env.switch_sides()
         state = next_state
