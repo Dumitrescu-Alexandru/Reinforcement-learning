@@ -45,7 +45,7 @@ class Agent(object):
             self.policy = NNPolicy(
                 channels=1, memsize=self.hidden_size, num_actions=self.num_actions
             )
-        self.hx = torch.zeros(1, hidden_size)
+        self.hx = torch.zeros(1, hidden_size,requires_grad=True)
 
     def load_model(self):
         self.policy.try_load(self.save_dir)
@@ -62,12 +62,12 @@ class Agent(object):
         )
 
     def reset(self):
-        self.hx = torch.zeros(1, self.hidden_size)
+        self.hx = torch.zeros(1, self.hidden_size,requires_grad=True)
 
     def get_action(self, state):
         if self.test:
             state = torch.tensor(self.preprocess(state))
-        self.hx.detach()
+            self.hx.detach()
         value, logit, self.hx = self.policy((state.view(1, 1, 50, 50), self.hx))
         logp = F.log_softmax(logit, dim=-1)
         if self.test:
