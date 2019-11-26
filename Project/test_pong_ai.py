@@ -26,14 +26,14 @@ parser.add_argument("--load_model", type=str, default="", help="Load some model"
 parser.add_argument("--replay_buffer_size", type=int, default=5000)
 parser.add_argument("--batch_size", type=int, default=32)
 parser.add_argument("--switch_sides", default=False, action="store_true")
-parser.add_argument("--use_black_white", default=False, action="store_true")
-parser.add_argument("--down_sample", default=False, action="store_true")
+parser.add_argument("--use_black_white", default=True, action="store_true")
+parser.add_argument("--down_sample", default=True, action="store_true")
 parser.add_argument("--save_dir", default='./', type=str, help="Directory to save models")
 parser.add_argument("--history", default=3, type=int, help="Number of previous frames in state")
 parser.add_argument("--step_multiple", default=1, type=int, help="Number times to step with the same action")
 parser.add_argument("--test", default=False, action="store_true", help="Freeze the model and set eps to 0")
 parser.add_argument("--lr", default=1e-5, type=float, help="Learning rate for the optimizer")
-parser.add_argument("--reward", default="incentivise_ttd", type=str, help="Learning rate for the optimizer")
+parser.add_argument("--reward_type", default="incentivise_ttd", type=str, help="Learning rate for the optimizer")
 parser.add_argument("--glie_a", default=2000000, type=int, help="Learning rate for the optimizer")
 args = parser.parse_args()
 
@@ -63,8 +63,13 @@ glie_a = args.glie_a
 avg_ttd = []
 avg_wr = []
 
-def get_reward(rew):
-    if args
+
+def get_reward(rew, dn, t):
+    if args.reward_type == "incentivise_ttd":
+        return 0.005 if rew == 0 and not dn else rew
+    elif args.reward_type == "anneal_incentivise_ttd":
+        return 0.995 ** ((t-50) ** 2) if rew == 0 and not dn else rew
+
 
 def black_and_white(state_):
     # grayscale weights for rgb
@@ -150,7 +155,7 @@ for i in range(0, episodes):
             state_list.append(next_state)
             cum_reward += rew1
             augmented_state_next_state = augment(state_list, args.history)
-            rew1 = 0.05 if not done else rew1
+            rew1 = get_reward(rew1, done, ttd)
             player.store_transition(augmented_state, action, augmented_state_next_state, rew1, done)
 
             augmented_state = augmented_state_next_state
