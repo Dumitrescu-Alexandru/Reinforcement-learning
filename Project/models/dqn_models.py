@@ -78,7 +78,7 @@ class Agent(object):
                               history=history, down_sample=down_sample, gray_scale=gray_scale)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
-        self.optimizer = optim.RMSprop(self.policy_net.parameters(), lr=1e-4)
+        self.optimizer = optim.RMSprop(self.policy_net.parameters(), lr=1e-5)
         self.memory = ReplayMemory(replay_buffer_size)
         self.batch_size = batch_size
         self.gamma = gamma

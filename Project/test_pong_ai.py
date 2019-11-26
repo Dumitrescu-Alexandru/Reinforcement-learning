@@ -31,6 +31,7 @@ parser.add_argument("--down_sample", default=False, action="store_true")
 parser.add_argument("--save_dir", default='./', type=str, help="Directory to save models")
 parser.add_argument("--history", default=3, type=int, help="Number of previous frames in state")
 parser.add_argument("--step_multiple", default=1, type=int, help="Number times to step with the same action")
+parser.add_argument("--test", default=1, type=int, help="Number times to step with the same action")
 args = parser.parse_args()
 
 # Make the environment
@@ -39,7 +40,7 @@ env.unwrapped.scale = args.scale
 env.unwrapped.fps = args.fps
 
 # Number of episodes/games to play
-episodes = 100000
+episodes = 150000
 TARGET_UPDATE = 20
 # Define the player
 player_id = 1
@@ -55,7 +56,7 @@ player = Agent(n_actions=3, replay_buffer_size=args.replay_buffer_size,
                down_sample=args.down_sample, gray_scale=args.use_black_white)
 if args.load_model:
     player.load_model(args.load_model)
-glie_a = 1000000
+glie_a = 2000000
 avg_ttd = []
 
 
@@ -119,7 +120,11 @@ frames =0
 for i in range(0, episodes):
     done = False
     state = env.reset()
-    eps = max(0.1, (glie_a - frames) / glie_a)
+
+    if args.test:
+        eps = 0
+    else:
+        eps = max(0.1, (glie_a - frames) / glie_a)
     cum_reward = 0
     state_list = []
     # time till death for a single game 
@@ -141,7 +146,7 @@ for i in range(0, episodes):
             augmented_state_next_state = augment(state_list, args.history)
             rew1 = 0.05 if not done else rew1
             player.store_transition(augmented_state, action, augmented_state_next_state, rew1, done)
-            
+
             augmented_state = augmented_state_next_state
 
             if not args.headless:
@@ -152,7 +157,8 @@ for i in range(0, episodes):
 
         # get the augmented next state from the list
         # store the values 
-        player.update_network()
+        if not args.test:
+            player.update_network()
         if args.housekeeping:
             states.append(ob1)
         # Count the wins
@@ -166,7 +172,7 @@ for i in range(0, episodes):
                 plt.legend(["Player", "Opponent", "Ball X", "Ball Y", "Ball vx", "Ball vy"])
                 plt.show()
                 states.clear()
-            print("episode {} over. Broken WR: {:.3f}".format(i, win1 / (i + 1)))
+            print("episode {} over. Broken WR: {:.3f}. Epsilon {:.3f}".format(i, win1 / (i + 1), eps))
 
             avg_ttd.append(ttd*args.step_multiple)
             frames += (ttd*args.step_multiple)
@@ -178,7 +184,7 @@ for i in range(0, episodes):
             if i % 5 == 4 and args.switch_sides:
                 env.switch_sides()
         state = next_state
-        if i % TARGET_UPDATE == 0:
+        if i % TARGET_UPDATE == 0 and not args.test:
             player.update_target_network()
     # save the model
     if i % args.save_every == 0 and i != 0:
