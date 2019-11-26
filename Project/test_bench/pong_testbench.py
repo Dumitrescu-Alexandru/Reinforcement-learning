@@ -49,7 +49,6 @@ class PongTestbench(object):
             action1 = self.player1.get_action(obs1)
             action2 = self.player2.get_action(obs2)
             (obs1, obs2), (rew1, rew2), done, info = self.env.step((action1, action2))
-
             if self.render:
                 self.env.render()
 
@@ -72,7 +71,7 @@ class PongTestbench(object):
             switch_freq = no_games // 2
         elif switch_freq in (None, 0):
             # Don't switch sides at all
-            switch_freq = no_games*2
+            switch_freq = no_games * 2
 
         print("Running test: %s vs %s." % (self.player1.get_name(), self.player2.get_name()))
         for i in range(no_games):
@@ -86,7 +85,7 @@ class PongTestbench(object):
         print("Test results:")
         print("%s vs %s" % (self.player1.get_name(), self.player2.get_name()))
         print("%d : %d" % (self.wins1, self.wins2))
-        print("-"*40)
+        print("-" * 40)
 
     def set_names(self):
         def verify_name(name):
@@ -110,5 +109,3 @@ class PongTestbench(object):
             return self.wins2, self.total_games
         else:
             raise ValueError("Agent not found in the testbench!")
-
-

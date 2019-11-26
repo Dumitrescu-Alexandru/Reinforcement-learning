@@ -134,7 +134,6 @@ frames = 0
 for i in range(0, episodes):
     done = False
     state = env.reset()
-
     if args.test:
         eps = 0
     else:

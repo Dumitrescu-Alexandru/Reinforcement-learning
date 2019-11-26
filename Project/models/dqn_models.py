@@ -31,7 +31,7 @@ class FeatExtractConv(nn.Module):
     def forward(self, x):
         # For the previous architecture
         if self.model_variant == 1:
-            x = self.conv1(x)
+            x = F.relu6(self.conv1(x))
             x = F.max_pool2d(x, kernel_size=2)
             x = F.relu6(self.conv2(x))
             x = F.max_pool2d(x, kernel_size=2)
@@ -66,11 +66,7 @@ class DQN(nn.Module):
         elif self.model_variant == 2:
             out_dim = 32 * 10 * 4
         self.out_dim = out_dim
-        if self.model_variant == 1:
-            self.hidden_layer = nn.Linear(self.out_dim, hidden)
-        elif self.model_variant == 2:
-            self.hidden_layer = nn.Linear(self.out_dim, hidden)
-
+        self.hidden_layer = nn.Linear(self.out_dim, hidden)
         self.output = nn.Linear(hidden, 3)
 
     def forward(self, x):
@@ -161,7 +157,7 @@ class Agent(object):
         self.optimizer.step()
 
     def load_model(self, path=""):
-        if path:
+        if path and ".pth" in path:
             print("Loading model from the given path " + path)
             self.policy_net.load_state_dict(torch.load(path))
         elif os.path.isfile(self.model_name + ".pth"):
