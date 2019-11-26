@@ -35,6 +35,7 @@ parser.add_argument("--test", default=False, action="store_true", help="Freeze t
 parser.add_argument("--lr", default=1e-5, type=float, help="Learning rate for the optimizer")
 parser.add_argument("--reward_type", default="incentivise_ttd", type=str, help="Learning rate for the optimizer")
 parser.add_argument("--glie_a", default=2000000, type=int, help="Learning rate for the optimizer")
+parser.add_argument("--model_variant", default=1, type=int, help="Index of the model")
 args = parser.parse_args()
 
 # Make the environment
@@ -56,7 +57,8 @@ win1 = 0
 ob1 = env.reset()
 player = Agent(n_actions=3, replay_buffer_size=args.replay_buffer_size,
                batch_size=args.batch_size, hidden_size=12, gamma=0.98, history=args.history,
-               down_sample=args.down_sample, gray_scale=args.use_black_white, lr=args.lr)
+               down_sample=args.down_sample, gray_scale=args.use_black_white, lr=args.lr,
+               model_variant=args.model_variant)
 if args.load_model:
     player.load_model(args.load_model)
 glie_a = args.glie_a
@@ -68,8 +70,9 @@ def get_reward(rew, dn, t):
     if args.reward_type == "incentivise_ttd":
         return 0.005 if rew == 0 and not dn else rew
     elif args.reward_type == "anneal_incentivise_ttd":
-        return 0.995 ** ((t-50) ** 2) if rew == 0 and not dn else rew
-
+        return 0.995 ** ((t - 50) ** 2) if rew == 0 and not dn else rew
+    elif args.reward_type == "unchanged":
+        return rew1
 
 def black_and_white(state_):
     # grayscale weights for rgb

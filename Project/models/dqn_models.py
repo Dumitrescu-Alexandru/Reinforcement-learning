@@ -12,46 +12,65 @@ from time import time
 
 
 class FeatExtractConv(nn.Module):
-    def __init__(self, train_device=torch.device("cuda:0"), channels=3):
+    def __init__(self, train_device=torch.device("cuda:0"), channels=3, model_variant=1):
         super(FeatExtractConv, self).__init__()
         self.train_device = train_device
-        self.conv1 = nn.Conv2d(channels, 32, kernel_size=(7, 7), stride=1)
-        self.conv2 = nn.Conv2d(32, 32, kernel_size=(5, 5), stride=1)
-        # self.max_pool1 = nn.MaxPool2d(2, stride=2)
-        # self.conv2 = nn.Conv2d(16, 32, kernel_size=(4, 4), stride=2)
-        # self.max_pool2 = nn.MaxPool2d(2, stride=2)
-        # self.conv3 = nn.Conv2d(3, 3, kernel_size=(5, 5), stride=2)
-        # self.max_pool3 = nn.MaxPool2d(2, stride=2)
-        self.train_device = train_device
+        self.model_variant = model_variant
+        # # The previous architecture
+        if self.model_variant == 1:
+            self.conv1 = nn.Conv2d(channels, 32, kernel_size=(7, 7), stride=1)
+            self.conv2 = nn.Conv2d(32, 32, kernel_size=(5, 5), stride=1)
+        elif self.model_variant == 2:
+            # The one taken from a3c
+            self.conv1 = nn.Conv2d(channels, 32, 3, stride=2, padding=1)
+            self.conv2 = nn.Conv2d(32, 32, 3, stride=2, padding=1)
+            self.conv3 = nn.Conv2d(32, 32, 3, stride=2, padding=1)
+            self.conv4 = nn.Conv2d(32, 32, 3, stride=2, padding=1)
+            self.train_device = train_device
 
     def forward(self, x):
-        x = x.to(self.train_device)
-        x = F.relu6(self.conv1(x))
-        x = F.max_pool2d(x, kernel_size=2)
-        x = F.relu6(self.conv2(x))
-        x = F.max_pool2d(x, kernel_size=2)
-        # x = F.relu6(self.max_pool1(self.conv1(x)))
-        # x = F.relu6(self.max_pool2(self.conv2(x)))
-        # x = F.relu6(self.max_pool3(self.conv3(x)))
+        # For the previous architecture
+        if self.model_variant == 1:
+            x = self.conv1(x)
+            x = F.max_pool2d(x, kernel_size=2)
+            x = F.relu6(self.conv2(x))
+            x = F.max_pool2d(x, kernel_size=2)
+        # for the borrowed thing from a3c
+        elif self.model_variant == 2:
+            x = x.to(self.train_device)
+            x = F.relu6(self.conv1(x))
+            x = F.relu6(self.conv2(x))
+            x = F.relu6(self.conv3(x))
+            x = F.relu6(self.conv4(x))
+
         return x
 
 
 class DQN(nn.Module):
     def __init__(self, hidden=100, fine_tune=True, train_device=torch.device("cuda:0"),
-                 history=3, down_sample=False, gray_scale=False):
+                 history=3, down_sample=False, gray_scale=False, model_variant=1):
         super(DQN, self).__init__()
         self.train_device = train_device
+        self.model_variant = model_variant
         self.hidden = hidden
         self.history = history
         self.channels = 1 if gray_scale else 3
         self.down_factor = 4 if down_sample else 1
-        self.feature_extractor = FeatExtractConv(channels=self.channels)
+        self.feature_extractor = FeatExtractConv(channels=self.channels, model_variant=model_variant)
         # self.feature_extractor = nn.Linear(3 * 2500, hidden)
         if not fine_tune:
             for p in self.feature_extractor.parameters():
                 p.requires_grad = False
+        if self.model_variant == 1:
+            out_dim = 32 * 34 * 9
+        elif self.model_variant == 2:
+            out_dim = 32 * 10 * 4
+        self.out_dim = out_dim
+        if self.model_variant == 1:
+            self.hidden_layer = nn.Linear(self.out_dim, hidden)
+        elif self.model_variant == 2:
+            self.hidden_layer = nn.Linear(self.out_dim, hidden)
 
-        self.hidden_layer = nn.Linear(32 * 34 * 9, hidden)
         self.output = nn.Linear(hidden, 3)
 
     def forward(self, x):
@@ -60,7 +79,7 @@ class DQN(nn.Module):
         # x = self.feature_extractor(
         #     x.view(-1, self.channels, self.history * (200 // self.down_factor), 200 // self.down_factor))
         x = F.relu6(self.feature_extractor(x))
-        x = F.relu6(self.hidden_layer(x.view(-1,  32 * 34 * 9)))
+        x = F.relu6(self.hidden_layer(x.view(-1, self.out_dim)))
         # x = F.relu6(self.hidden_layer(x.view(-1, 2 * 48 * 15)))
         x = self.output(x)
         return x
@@ -69,14 +88,16 @@ class DQN(nn.Module):
 class Agent(object):
     def __init__(self, n_actions, replay_buffer_size=50000,
                  batch_size=32, hidden_size=18, gamma=0.98, model_name="dqn_model",
-                 history=3, down_sample=False, gray_scale=False, lr=1e-5):
+                 history=3, down_sample=False, gray_scale=False, lr=1e-5, model_variant=1):
         self.lr = lr
         self.train_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.n_actions = n_actions
         self.policy_net = DQN(hidden=hidden_size, train_device=self.train_device,
-                              history=history, down_sample=down_sample, gray_scale=gray_scale)
+                              history=history, down_sample=down_sample, gray_scale=gray_scale,
+                              model_variant=model_variant)
         self.target_net = DQN(hidden=hidden_size, train_device=self.train_device,
-                              history=history, down_sample=down_sample, gray_scale=gray_scale)
+                              history=history, down_sample=down_sample, gray_scale=gray_scale,
+                              model_variant=model_variant)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
         self.optimizer = optim.RMSprop(self.policy_net.parameters(), lr=self.lr)
