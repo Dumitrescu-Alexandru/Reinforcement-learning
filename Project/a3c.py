@@ -148,15 +148,18 @@ def train(shared_model, shared_optimizer, rank, args, info):
             value, logit, hx = model((state.view(1,1,50,50), hx))
             logp = F.log_softmax(logit, dim=-1)
 
-            action = torch.exp(logp).multinomial(num_samples=1).data[0]#logp.max(1)[1].data if args.test else
+            if args.test : 
+                action = logp.max(1)[1].data
+            else:
+                action = torch.exp(logp).multinomial(num_samples=1).data[0]#logp.max(1)[1].data if args.test else
             state, reward, done, _ = env.step(action.numpy()[0])
             if reward == 10 : win1+=1
             
             if args.render: env.render()
             
-            # reward = 0.01 if not done else reward
+            reward = 0.01 if not done else reward
             state = torch.tensor(prepro(state)) ; epr += reward
-            reward = np.clip(reward, -1, 1) # reward
+            # reward = np.clip(reward, -1, 1) # reward
             done = done or episode_length >= 1e4 # don't playing one ep for too long
             
             info['frames'].add_(1) ; num_frames = int(info['frames'].item())
@@ -185,6 +188,8 @@ def train(shared_model, shared_optimizer, rank, args, info):
                     win1/(info['episodes'].item()+1),
                     info['run_loss'].item()
                     ))
+                if args.test and info['episodes'].item() % 5 == 4:
+                    env.switch_sides()
 
             values.append(value) ; logps.append(logp) ; actions.append(action) ; rewards.append(reward)
 
@@ -202,7 +207,7 @@ def train(shared_model, shared_optimizer, rank, args, info):
 
 if __name__ == "__main__":
     if sys.version_info[0] > 2:
-        mp.set_start_method('spawn') # this must not be in global scope
+        ctx = mp.get_context('spawn') # this must not be in global scope
     elif sys.platform == 'linux' or sys.platform == 'linux2':
         raise "Must be using Python 3 with linux!" # or else you get a deadlock in conv2d
     
@@ -224,6 +229,6 @@ if __name__ == "__main__":
     
     processes = []
     for rank in range(args.processes):
-        p = mp.Process(target=train, args=(shared_model, shared_optimizer, rank, args, info))
+        p = ctx.Process(target=train, args=(shared_model, shared_optimizer, rank, args, info))
         p.start() ; processes.append(p)
     for p in processes: p.join()
