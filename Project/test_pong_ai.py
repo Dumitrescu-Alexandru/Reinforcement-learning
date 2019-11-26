@@ -31,7 +31,7 @@ parser.add_argument("--down_sample", default=False, action="store_true")
 parser.add_argument("--save_dir", default='./', type=str, help="Directory to save models")
 parser.add_argument("--history", default=3, type=int, help="Number of previous frames in state")
 parser.add_argument("--step_multiple", default=1, type=int, help="Number times to step with the same action")
-parser.add_argument("--test", default=1, type=int, help="Number times to step with the same action")
+parser.add_argument("--test", default=False, action="store_true", help="Number times to step with the same action")
 args = parser.parse_args()
 
 # Make the environment
@@ -116,7 +116,7 @@ def augment(state_list, m=3):
     return augmented_state
 
 
-frames =0
+frames = 0
 for i in range(0, episodes):
     done = False
     state = env.reset()
@@ -154,7 +154,6 @@ for i in range(0, episodes):
             if done:
                 break
 
-
         # get the augmented next state from the list
         # store the values 
         if not args.test:
@@ -174,8 +173,8 @@ for i in range(0, episodes):
                 states.clear()
             print("episode {} over. Broken WR: {:.3f}. Epsilon {:.3f}".format(i, win1 / (i + 1), eps))
 
-            avg_ttd.append(ttd*args.step_multiple)
-            frames += (ttd*args.step_multiple)
+            avg_ttd.append(ttd * args.step_multiple)
+            frames += (ttd * args.step_multiple)
             # only keeping the last 50 time to deaths
             if len(avg_ttd) > 50:
                 del (avg_ttd[:len(avg_ttd) - 50])
