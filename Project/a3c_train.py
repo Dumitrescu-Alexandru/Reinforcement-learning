@@ -73,6 +73,8 @@ def train(base_agent, rank, args, info):
         if done:
             # resets the hidden vector for RNN
             local_agent.reset()
+        else :
+            local_agent.hx = local_agent.hx.detach()
 
         values, logps, actions, rewards = [], [], [], [] # save values for computing gradientss
 
@@ -127,7 +129,7 @@ def train(base_agent, rank, args, info):
 
         loss = cost_func(args, torch.cat(values), torch.cat(logps), torch.cat(actions), np.asarray(rewards))
         eploss += loss.item()
-        base_agent.optimizer.zero_grad() ; loss.backward(retain_graph=True)
+        base_agent.optimizer.zero_grad() ; loss.backward()
         torch.nn.utils.clip_grad_norm_(local_model.parameters(), 40)
 
         for param, shared_param in zip(local_model.parameters(), base_agent.policy.parameters()):
