@@ -156,6 +156,18 @@ class Agent(object):
                 param.grad.data.clamp_(-1e-1, 1e-1)
         self.optimizer.step()
 
+    def freeze_feat_extractor(self):
+        self.policy_net.feature_extractor.requires_grad = False
+
+    def load_conv(self, path):
+        if path and ".pth" in path:
+            print("Loading model from the given path " + path)
+            model_dict = self.policy_net.state_dict()
+            pretrained_dict = torch.load(path)
+            pretrained_dict = {k: v for k, v in pretrained_dict.items() if "feature_extractor" in k}
+            model_dict.update(pretrained_dict)
+            self.policy_net.load_state_dict(model_dict)
+            
     def load_model(self, path=""):
         if path and ".pth" in path:
             print("Loading model from the given path " + path)

@@ -86,6 +86,7 @@ class PongTestbench(object):
         print("%s vs %s" % (self.player1.get_name(), self.player2.get_name()))
         print("%d : %d" % (self.wins1, self.wins2))
         print("-" * 40)
+        return self.wins1, self.wins2
 
     def set_names(self):
         def verify_name(name):
