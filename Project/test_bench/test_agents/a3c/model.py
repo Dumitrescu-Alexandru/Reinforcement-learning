@@ -2,10 +2,10 @@
 
 from __future__ import print_function
 import torch
-import glob
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
+from pathlib import Path
 
 class NNPolicy(nn.Module): # an actor-critic neural network
     def __init__(self, channels, memsize, num_actions):
@@ -27,9 +27,11 @@ class NNPolicy(nn.Module): # an actor-critic neural network
         return self.critic_linear(hx), self.actor_linear(hx), hx
 
     def try_load(self, save_dir):
-        paths = glob.glob(save_dir + '*.tar') ; step = 0
+        print(save_dir)
+        paths = list(save_dir.glob('*.tar'))
+        step = 0
         if len(paths) > 0:
-            ckpts = [int(s.split('.')[-2]) for s in paths]
+            ckpts = [int(s.stem.split('.')[-1]) for s in paths]
             ix = np.argmax(ckpts) ; step = ckpts[ix]
             self.load_state_dict(torch.load(paths[ix]))
         print("\tno saved models") if step is 0 else print("\tloaded model: {}".format(paths[ix]))

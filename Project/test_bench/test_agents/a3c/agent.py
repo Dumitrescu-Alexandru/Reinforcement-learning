@@ -5,17 +5,12 @@ parent = Path(__file__).parent
 sys.path.append(str(parent.resolve()))
 
 import numpy as np
-from collections import namedtuple
-import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-import random
-import torchvision.models as models
-from time import time
 from model import NNPolicy, SharedAdam
-import glob
+from scipy.signal import lfilter
 
 #%%
 class Agent(object):
@@ -24,7 +19,7 @@ class Agent(object):
         model_name="a3c_model",
         hidden_size=256,
         num_actions=3,
-        save_dir="./",
+        save_dir=Path("."),
         base=True,
         lr=1e-4,
         test=True
@@ -58,7 +53,7 @@ class Agent(object):
 
         torch.save(
             self.policy.state_dict(),
-            self.save_dir + "model.{:.0f}.tar".format( num_frames/ 1e6),
+            self.save_dir / f"model.{num_frames/ 1e6:.0f}.tar",
         )
 
     def reset(self):
@@ -79,7 +74,8 @@ class Agent(object):
             # return value, log_prob, action if training
             return value, logp, action
 
-    def preprocess(self, state_):
+    
+    def preprocess(self,state_):
         # always grayscale
         if len(state_.shape) == 3:
             state_ = self.black_and_white(state_)
@@ -103,5 +99,27 @@ class Agent(object):
         )
         return small_image
 
+    @staticmethod
+    def discount(x, gamma):
+        return lfilter([1],[1,-gamma],x[::-1])[::-1]
 
+    
+    def cost_func(self,args, values, logps, actions, rewards):
+        np_values = values.view(-1).data.numpy()
+
+        # generalized advantage estimation using \delta_t residuals (a policy gradient method)
+        delta_t = np.asarray(rewards) + args.gamma * np_values[1:] - np_values[:-1]
+        logpys = logps.gather(1, torch.tensor(actions).view(-1,1))
+        gen_adv_est = self.discount(delta_t, args.gamma * args.tau)
+        policy_loss = -(logpys.view(-1) * torch.FloatTensor(gen_adv_est.copy())).sum()
+        
+        # l2 loss over value estimator
+        rewards[-1] += args.gamma * np_values[-1]
+        discounted_r = self.discount(np.asarray(rewards), args.gamma)
+        discounted_r = torch.tensor(discounted_r.copy(), dtype=torch.float32)
+        value_loss = .5 * (discounted_r - values[:-1,0]).pow(2).sum()
+
+        entropy_loss = (-logps * torch.exp(logps)).sum() # entropy definition, for entropy regularization
+        return policy_loss + 0.5 * value_loss - 0.01 * entropy_loss
+    
 # %%
