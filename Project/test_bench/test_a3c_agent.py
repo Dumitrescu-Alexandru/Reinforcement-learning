@@ -36,7 +36,7 @@ model_types ={
     '0.05_rewards' : models_dir/"models_a3c"
 }
 
-test_agent_dir = Path(__file__).absolute().parent / "test_agents"
+#test_agent_dir = Path(__file__).absolute().parent / "test_agents"
 
 opp_agents = {
     'SimpleAI':None,
@@ -53,6 +53,13 @@ for variant in tqdm(model_types):
         data[variant][model_no] = {}
         for opponent in tqdm(opp_agents):
             save_dir = model_types[variant]
+            sys.path.insert(0, args.dir1)
+            importlib.reload(agent)
+            orig_wd = os.getcwd()
+            os.chdir(args.dir1)
+            os.chdir(orig_wd)
+            del sys.path[0]
+             
             agent1 = agent.Agent()
             agent1.save_dir = save_dir
             agent1.load_model(model_no)
