@@ -36,6 +36,10 @@ parser.add_argument("--lr", default=1e-5, type=float, help="Learning rate for th
 parser.add_argument("--reward_type", default="incentivise_ttd", type=str, help="Learning rate for the optimizer")
 parser.add_argument("--glie_a", default=2000000, type=int, help="Learning rate for the optimizer")
 parser.add_argument("--model_variant", default=1, type=int, help="Index of the model")
+parser.add_argument("--hidden_size", default=18, type=int, help="Hidden size of the DQN model")
+parser.add_argument("--load_conv", default=False, action="store_true", help="Loads conv extractor from some other model")
+parser.add_argument("--freeze_feat_extractor", default=False, action="store_true",
+                    help="Freeze the feature extractor part of the model for parameter tuning")
 args = parser.parse_args()
 
 # Make the environment
@@ -56,10 +60,13 @@ states = []
 win1 = 0
 ob1 = env.reset()
 player = Agent(n_actions=3, replay_buffer_size=args.replay_buffer_size,
-               batch_size=args.batch_size, hidden_size=12, gamma=0.98, history=args.history,
+               batch_size=args.batch_size, hidden_size=args.hidden_size, gamma=0.98, history=args.history,
                down_sample=args.down_sample, gray_scale=args.use_black_white, lr=args.lr,
                model_variant=args.model_variant)
-if args.load_model:
+if args.load_conv:
+    player.load_conv(args.load_model)
+    player.freeze_feat_extractor()
+elif args.load_model:
     player.load_model(args.load_model)
 glie_a = args.glie_a
 avg_ttd = []
@@ -72,7 +79,8 @@ def get_reward(rew, dn, t):
     elif args.reward_type == "anneal_incentivise_ttd":
         return 0.995 ** ((t - 50) ** 2) if rew == 0 and not dn else rew
     elif args.reward_type == "unchanged":
-        return rew1
+        return rew
+
 
 def black_and_white(state_):
     # grayscale weights for rgb
