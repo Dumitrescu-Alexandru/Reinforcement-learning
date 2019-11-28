@@ -24,6 +24,7 @@ class Agent(object):
         lr=1e-4,
         test=True
     ):
+        print("Creating Agent")
         self.save_dir = save_dir
         self.hidden_size = hidden_size
         self.num_actions = num_actions
@@ -42,8 +43,8 @@ class Agent(object):
             )
         self.hx = torch.zeros(1, hidden_size,requires_grad=True)
 
-    def load_model(self):
-        self.policy.try_load(self.save_dir)
+    def load_model(self,model_no=None):
+        self.policy.try_load(self.save_dir,model_no)
 
     @staticmethod
     def get_name():
