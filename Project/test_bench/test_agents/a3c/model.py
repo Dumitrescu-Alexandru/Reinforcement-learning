@@ -43,8 +43,8 @@ class NNPolicy(nn.Module): # an actor-critic neural network
                 step = model_no
             else:
                 step = 0
-            print(f"Problem model location\n {model_path} doesn't exist") if step is 0 else print("\tloaded model: {}            ".format(paths[ix]))
-        return step
+            print(f"Problem model location\n {model_path} doesn't exist") if step is 0 else print("\tloaded model: {}            ".format(model_path.stem))
+            return step
 
 class SharedAdam(torch.optim.Adam): # extend a pytorch optimizer so it shares grads across processes
     def __init__(self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-8, weight_decay=0):
