@@ -48,7 +48,7 @@ class FeatExtractConv(nn.Module):
 
 class DQN(nn.Module):
     def __init__(self, hidden=100, fine_tune=True, train_device=torch.device("cuda:0"),
-                 history=3, down_sample=False, gray_scale=False, model_variant=1):
+                 history=3, down_sample=False, gray_scale=False, model_variant=1, train_=False):
         super(DQN, self).__init__()
         self.train_device = train_device
         self.model_variant = model_variant
@@ -67,7 +67,9 @@ class DQN(nn.Module):
             out_dim = 32 * 10 * 4
         self.out_dim = out_dim
         self.hidden_layer = nn.Linear(self.out_dim, hidden)
+        self.dropout = nn.Dropout(p=0.2)
         self.output = nn.Linear(hidden, 3)
+        self.train_ = train_
 
     def forward(self, x):
         x = x.to(self.train_device)
@@ -76,6 +78,8 @@ class DQN(nn.Module):
         #     x.view(-1, self.channels, self.history * (200 // self.down_factor), 200 // self.down_factor))
         x = F.relu6(self.feature_extractor(x))
         x = F.relu6(self.hidden_layer(x.view(-1, self.out_dim)))
+        if self.train_:
+            x = self.dropout(x)
         # x = F.relu6(self.hidden_layer(x.view(-1, 2 * 48 * 15)))
         x = self.output(x)
         return x
@@ -84,16 +88,17 @@ class DQN(nn.Module):
 class Agent(object):
     def __init__(self, n_actions, replay_buffer_size=50000,
                  batch_size=32, hidden_size=18, gamma=0.98, model_name="dqn_model",
-                 history=3, down_sample=False, gray_scale=False, lr=1e-5, model_variant=1):
+                 history=3, down_sample=False, gray_scale=False, lr=1e-5, model_variant=1, train_=False):
         self.lr = lr
         self.train_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.n_actions = n_actions
+        self.train_ = train_
         self.policy_net = DQN(hidden=hidden_size, train_device=self.train_device,
                               history=history, down_sample=down_sample, gray_scale=gray_scale,
-                              model_variant=model_variant)
+                              model_variant=model_variant, train_=train_)
         self.target_net = DQN(hidden=hidden_size, train_device=self.train_device,
                               history=history, down_sample=down_sample, gray_scale=gray_scale,
-                              model_variant=model_variant)
+                              model_variant=model_variant, train_=train_)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
         self.optimizer = optim.RMSprop(self.policy_net.parameters(), lr=self.lr)
@@ -167,7 +172,7 @@ class Agent(object):
             pretrained_dict = {k: v for k, v in pretrained_dict.items() if "feature_extractor" in k}
             model_dict.update(pretrained_dict)
             self.policy_net.load_state_dict(model_dict)
-            
+
     def load_model(self, path=""):
         if path and ".pth" in path:
             print("Loading model from the given path " + path)

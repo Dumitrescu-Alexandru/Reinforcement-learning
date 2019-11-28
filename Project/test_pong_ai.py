@@ -38,6 +38,7 @@ parser.add_argument("--glie_a", default=2000000, type=int, help="Learning rate f
 parser.add_argument("--model_variant", default=1, type=int, help="Index of the model")
 parser.add_argument("--hidden_size", default=18, type=int, help="Hidden size of the DQN model")
 parser.add_argument("--load_conv", default=False, action="store_true", help="Loads conv extractor from some other model")
+parser.add_argument("--fixed_eps", default=-1, type=float, help="set a fixed epsilon-exploration parameter")
 parser.add_argument("--freeze_feat_extractor", default=False, action="store_true",
                     help="Freeze the feature extractor part of the model for parameter tuning")
 args = parser.parse_args()
@@ -68,6 +69,8 @@ if args.load_conv:
     player.freeze_feat_extractor()
 elif args.load_model:
     player.load_model(args.load_model)
+if args.freeze_feat_extractor:
+    player.freeze_feat_extractor()
 glie_a = args.glie_a
 avg_ttd = []
 avg_wr = []
@@ -75,7 +78,7 @@ avg_wr = []
 
 def get_reward(rew, dn, t):
     if args.reward_type == "incentivise_ttd":
-        return 0.005 if rew == 0 and not dn else rew
+        return 0.001 if rew == 0 and not dn else rew
     elif args.reward_type == "anneal_incentivise_ttd":
         return 0.995 ** ((t - 50) ** 2) if rew == 0 and not dn else rew
     elif args.reward_type == "unchanged":
@@ -144,6 +147,8 @@ for i in range(0, episodes):
     state = env.reset()
     if args.test:
         eps = 0
+    elif args.fixed_eps != -1:
+        eps = args.fixed_eps
     else:
         eps = max(0.1, (glie_a - frames) / glie_a)
     cum_reward = 0

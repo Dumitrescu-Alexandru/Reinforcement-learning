@@ -91,7 +91,7 @@ class DQN(nn.Module):
 
 class Agent(object):
     def __init__(self, replay_buffer_size=50000,
-                 batch_size=32, hidden_size=12, gamma=0.98, model_name="dqn_model",
+                 batch_size=32, hidden_size=60, gamma=0.98, model_name="dqn_model",
                  history=3, down_sample=False, gray_scale=False):
         self.history = history
         self.train_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
