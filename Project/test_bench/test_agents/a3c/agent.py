@@ -24,7 +24,6 @@ class Agent(object):
         lr=1e-4,
         test=True
     ):
-        print("Creating Agent")
         self.save_dir = save_dir
         self.hidden_size = hidden_size
         self.num_actions = num_actions
