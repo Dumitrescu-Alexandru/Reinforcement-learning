@@ -19,6 +19,7 @@ parser.add_argument("--games", "-g", type=int, default=100, help="number of game
 
 args = parser.parse_args()
 test_agent_dir = Path(__file__).absolute().parent / "test_agents"
+models_dir =  Path(__file__).absolute().parent.parent
 
 args.dir1 = str(test_agent_dir/"a3c")
 sys.path.insert(0, args.dir1)
@@ -28,7 +29,6 @@ orig_wd = os.getcwd()
 os.chdir(args.dir1)
 model_numbers = range(2,52,2)
 
-models_dir =  Path(__file__).absolute().parent.parent
 
 model_types ={
     'normal_rewards':models_dir/"models_a3c_normal",
