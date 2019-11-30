@@ -60,21 +60,31 @@ class FeatExtractConv(nn.Module):
 
 class DQN(nn.Module):
     def __init__(self, hidden=100, fine_tune=True, train_device=torch.device("cuda:0"),
-                 history=3, down_sample=False, gray_scale=False):
+                 history=3, down_sample=False, gray_scale=False, channels_stack=False):
         super(DQN, self).__init__()
         self.train_device = train_device
         self.hidden = hidden
         self.history = history
         # always 1 chanel (always grayscale)
-        self.channels = 1
+        self.channels = 1 if not channels_stack else history
         self.down_factor = 4 if down_sample else 1
         self.feature_extractor = FeatExtractConv(channels=self.channels)
+        self.feature_extractor = self.feature_extractor.to(self.train_device)
+        self.channels_stack = channels_stack
+        with torch.no_grad():
+            if self.channels_stack:
+                out_dims = self.feature_extractor(torch.randn(1, self.history, 50, 50).to(self.train_device)).shape
+            else:
+                out_dims = self.feature_extractor(torch.randn(1, 1, self.history * 50, 50)).shape
+            out_dim = 1
+            for o_d in out_dims:
+                out_dim = out_dim * o_d
         # self.feature_extractor = nn.Linear(3 * 2500, hidden)
         if not fine_tune:
             for p in self.feature_extractor.parameters():
                 p.requires_grad = False
-
-        self.hidden_layer = nn.Linear(32 * 34 * 9, hidden)
+        self.out_dim = out_dim
+        self.hidden_layer = nn.Linear(out_dim, hidden)
         self.output = nn.Linear(hidden, 3)
 
     def forward(self, x):
@@ -83,7 +93,7 @@ class DQN(nn.Module):
         # x = self.feature_extractor(
         #     x.view(-1, self.channels, self.history * (200 // self.down_factor), 200 // self.down_factor))
         x = F.relu6(self.feature_extractor(x))
-        x = F.relu6(self.hidden_layer(x.view(-1, 32 * 34 * 9)))
+        x = F.relu6(self.hidden_layer(x.view(-1, self.out_dim)))
         # x = F.relu6(self.hidden_layer(x.view(-1, 2 * 48 * 15)))
         x = self.output(x)
         return x
@@ -91,15 +101,17 @@ class DQN(nn.Module):
 
 class Agent(object):
     def __init__(self, replay_buffer_size=50000,
-                 batch_size=32, hidden_size=60, gamma=0.98, model_name="dqn_model",
-                 history=3, down_sample=False, gray_scale=False):
+                 batch_size=32, hidden_size=256, gamma=0.98, model_name="dqn_model",
+                 history=3, down_sample=False, gray_scale=False, channels_stack=False):
         self.history = history
         self.train_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.policy_net = DQN(hidden=hidden_size, train_device=self.train_device,
-                              history=history, down_sample=down_sample, gray_scale=gray_scale)
+                              history=history, down_sample=down_sample, gray_scale=gray_scale,
+                              channels_stack=channels_stack)
         self.state_list = []
         self.target_net = DQN(hidden=hidden_size, train_device=self.train_device,
-                              history=history, down_sample=down_sample, gray_scale=gray_scale)
+                              history=history, down_sample=down_sample, gray_scale=gray_scale,
+                              channels_stack=channels_stack)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
         self.optimizer = optim.RMSprop(self.policy_net.parameters(), lr=1e-5)
@@ -109,6 +121,7 @@ class Agent(object):
         self.model_name = model_name
         self.policy_net.to(self.train_device)
         self.target_net.to(self.train_device)
+        self.channels_stack = channels_stack
 
     def update_network(self, updates=1):
         for _ in range(updates):
@@ -119,7 +132,7 @@ class Agent(object):
             return
 
         transitions = self.memory.sample(self.batch_size)
-        # Transpose the batch (see https://stackoverflow.com/a/19343/3343043 for
+        # Transpose the bat ch (see https://stackoverflow.com/a/19343/3343043 for
         # detailed explanation). This converts batch-array of Transitions
         # to Transition of batch-arrays.
         batch = Transition(*zip(*transitions))
@@ -249,7 +262,10 @@ class Agent(object):
 
         # if there are m previous images
         if len(self.state_list) >= m:
-            augmented_state = np.vstack(self.state_list[-m:])
+            if self.channels_stack:
+                augmented_state = np.array(self.state_list[-m:])
+            else:
+                augmented_state = np.vstack(self.state_list[-m:])
             # remove the old images
             self.state_list = self.state_list[-m:]
 
@@ -257,11 +273,12 @@ class Agent(object):
         else:
             first_state = self.state_list[0]
             temp = [first_state] * (m - len(self.state_list)) + self.state_list
-            augmented_state = np.vstack(temp)
+            if self.channels_stack:
+                augmented_state = np.array(temp)
+            else:
+                augmented_state = np.vstack(temp)
 
         # just add a channel in the beginning for torch to play nice
-        if channels == 3:
-            augmented_state = augmented_state.tranpose(2, 0, 1)
-        elif channels == 1:
+        if channels == 1 and not self.channels_stack:
             augmented_state = augmented_state[np.newaxis, :]
         return augmented_state

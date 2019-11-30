@@ -37,8 +37,11 @@ parser.add_argument("--reward_type", default="incentivise_ttd", type=str, help="
 parser.add_argument("--glie_a", default=2000000, type=int, help="Learning rate for the optimizer")
 parser.add_argument("--model_variant", default=1, type=int, help="Index of the model")
 parser.add_argument("--hidden_size", default=18, type=int, help="Hidden size of the DQN model")
-parser.add_argument("--load_conv", default=False, action="store_true", help="Loads conv extractor from some other model")
+parser.add_argument("--load_conv", default=False, action="store_true",
+                    help="Loads conv extractor from some other model")
 parser.add_argument("--fixed_eps", default=-1, type=float, help="set a fixed epsilon-exploration parameter")
+parser.add_argument("--dropout", default=False, action="store_true", help="set dropout to the DQN model")
+parser.add_argument("--channels_stack", default=False, action="store_true", help="Set history images to channels")
 parser.add_argument("--freeze_feat_extractor", default=False, action="store_true",
                     help="Freeze the feature extractor part of the model for parameter tuning")
 args = parser.parse_args()
@@ -63,7 +66,8 @@ ob1 = env.reset()
 player = Agent(n_actions=3, replay_buffer_size=args.replay_buffer_size,
                batch_size=args.batch_size, hidden_size=args.hidden_size, gamma=0.98, history=args.history,
                down_sample=args.down_sample, gray_scale=args.use_black_white, lr=args.lr,
-               model_variant=args.model_variant)
+               model_variant=args.model_variant, train_=args.dropout and not args.test,
+               channel_stack=args.channels_stack)
 if args.load_conv:
     player.load_conv(args.load_model)
     player.freeze_feat_extractor()
@@ -78,7 +82,7 @@ avg_wr = []
 
 def get_reward(rew, dn, t):
     if args.reward_type == "incentivise_ttd":
-        return 0.001 if rew == 0 and not dn else rew
+        return 0.01 if rew == 0 and not dn else rew
     elif args.reward_type == "anneal_incentivise_ttd":
         return 0.995 ** ((t - 50) ** 2) if rew == 0 and not dn else rew
     elif args.reward_type == "unchanged":
@@ -96,7 +100,10 @@ def black_and_white(state_):
         bin_size = input_size // output_size
         small_image = new_state.reshape((1, output_size, bin_size,
                                          output_size, bin_size)).max(4).max(2)
-        return small_image[0]
+        small_image = small_image[0]
+        small_image[:, :45:50] = 47.645
+        return small_image
+        # return small_image[0]
     # send only a (size,size) image
     return new_state[0]
 
@@ -123,20 +130,24 @@ def augment(state_list, m=3):
 
     # if there are m previous images
     if len(state_list) >= m:
-        augmented_state = np.vstack(state_list[-m:])
-        # remove the old images
+        if args.channels_stack:
+            augmented_state = np.array(state_list[-m:])
+        else:
+            augmented_state = np.vstack(state_list[-m:])
+            # remove the old images
         state_list = state_list[-m:]
 
     # copy the last state m times
     else:
         first_state = state_list[0]
         temp = [first_state] * (m - len(state_list)) + state_list
-        augmented_state = np.vstack(temp)
+        if args.channels_stack:
+            augmented_state = np.array(temp)
+        else:
+            augmented_state = np.vstack(temp)
 
     # just add a channel in the beginning for torch to play nice
-    if channels == 3:
-        augmented_state = augmented_state.tranpose(2, 0, 1)
-    elif channels == 1:
+    if channels == 1 and not args.channels_stack:
         augmented_state = augmented_state[np.newaxis, :]
     return augmented_state
 
@@ -150,13 +161,16 @@ for i in range(0, episodes):
     elif args.fixed_eps != -1:
         eps = args.fixed_eps
     else:
-        eps = max(0.1, (glie_a - frames) / glie_a)
+        eps = max(0.3, (glie_a - frames) / glie_a)
     cum_reward = 0
     state_list = []
     # time till death for a single game 
     ttd = 0
     channels = 1 if args.use_black_white else 3
     state_list.append(preprocess(state))
+    if i % 15000 == 0 and i != 0:
+        for param_group in player.optimizer.param_groups:
+            param_group['lr'] = 1e-6
     while not done:
         ttd += 1
         # add the preprocessed image to list

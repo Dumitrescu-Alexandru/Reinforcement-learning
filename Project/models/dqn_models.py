@@ -20,6 +20,7 @@ class FeatExtractConv(nn.Module):
         if self.model_variant == 1:
             self.conv1 = nn.Conv2d(channels, 32, kernel_size=(7, 7), stride=1)
             self.conv2 = nn.Conv2d(32, 32, kernel_size=(5, 5), stride=1)
+            # self.conv3 = nn.Conv2d(32, 32, kernel_size=(3, 3), stride=1)
         elif self.model_variant == 2:
             # The one taken from a3c
             self.conv1 = nn.Conv2d(channels, 32, 3, stride=2, padding=1)
@@ -35,6 +36,8 @@ class FeatExtractConv(nn.Module):
             x = F.max_pool2d(x, kernel_size=2)
             x = F.relu6(self.conv2(x))
             x = F.max_pool2d(x, kernel_size=2)
+            # x = F.relu6(self.conv3(x))
+            
         # for the borrowed thing from a3c
         elif self.model_variant == 2:
             x = x.to(self.train_device)
@@ -48,7 +51,8 @@ class FeatExtractConv(nn.Module):
 
 class DQN(nn.Module):
     def __init__(self, hidden=100, fine_tune=True, train_device=torch.device("cuda:0"),
-                 history=3, down_sample=False, gray_scale=False, model_variant=1, train_=False):
+                 history=3, down_sample=False, gray_scale=False, model_variant=1, train_=False,
+                 channel_stack=False):
         super(DQN, self).__init__()
         self.train_device = train_device
         self.model_variant = model_variant
@@ -56,18 +60,27 @@ class DQN(nn.Module):
         self.history = history
         self.channels = 1 if gray_scale else 3
         self.down_factor = 4 if down_sample else 1
+        self.channels = self.channels if not channel_stack else self.channels * self.history
         self.feature_extractor = FeatExtractConv(channels=self.channels, model_variant=model_variant)
         # self.feature_extractor = nn.Linear(3 * 2500, hidden)
         if not fine_tune:
             for p in self.feature_extractor.parameters():
                 p.requires_grad = False
-        if self.model_variant == 1:
-            out_dim = 32 * 34 * 9
+        if self.model_variant == 1 or self.model_variant == 2:
+
+            with torch.no_grad():
+                if channel_stack:
+                    out_dims = self.feature_extractor(torch.randn(1, self.history, 50, 50)).shape
+                else:
+                    out_dims = self.feature_extractor(torch.randn(1, 1, self.history * 50, 50)).shape
+            out_dim = 1
+            for o_d in out_dims:
+                out_dim = out_dim * o_d
         elif self.model_variant == 2:
             out_dim = 32 * 10 * 4
         self.out_dim = out_dim
-        self.hidden_layer = nn.Linear(self.out_dim, hidden)
         self.dropout = nn.Dropout(p=0.2)
+        self.hidden_layer = nn.Linear(out_dim, hidden)
         self.output = nn.Linear(hidden, 3)
         self.train_ = train_
 
@@ -78,6 +91,7 @@ class DQN(nn.Module):
         #     x.view(-1, self.channels, self.history * (200 // self.down_factor), 200 // self.down_factor))
         x = F.relu6(self.feature_extractor(x))
         x = F.relu6(self.hidden_layer(x.view(-1, self.out_dim)))
+
         if self.train_:
             x = self.dropout(x)
         # x = F.relu6(self.hidden_layer(x.view(-1, 2 * 48 * 15)))
@@ -87,21 +101,23 @@ class DQN(nn.Module):
 
 class Agent(object):
     def __init__(self, n_actions, replay_buffer_size=50000,
-                 batch_size=32, hidden_size=18, gamma=0.98, model_name="dqn_model",
-                 history=3, down_sample=False, gray_scale=False, lr=1e-5, model_variant=1, train_=False):
+                 batch_size=32, hidden_size=18, gamma=0.99, model_name="dqn_model",
+                 history=3, down_sample=False, gray_scale=False, lr=1e-5, model_variant=1, train_=False,
+                 channel_stack=False):
         self.lr = lr
         self.train_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.n_actions = n_actions
         self.train_ = train_
         self.policy_net = DQN(hidden=hidden_size, train_device=self.train_device,
                               history=history, down_sample=down_sample, gray_scale=gray_scale,
-                              model_variant=model_variant, train_=train_)
+                              model_variant=model_variant, train_=train_, channel_stack=channel_stack)
         self.target_net = DQN(hidden=hidden_size, train_device=self.train_device,
                               history=history, down_sample=down_sample, gray_scale=gray_scale,
-                              model_variant=model_variant, train_=train_)
+                              model_variant=model_variant, train_=train_, channel_stack=channel_stack)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
         self.optimizer = optim.RMSprop(self.policy_net.parameters(), lr=self.lr)
+        # self.optimizer = optim.Adam(self.policy_net.parameters(), lr=self.lr)
         self.memory = ReplayMemory(replay_buffer_size)
         self.batch_size = batch_size
         self.gamma = gamma

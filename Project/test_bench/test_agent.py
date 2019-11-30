@@ -20,8 +20,8 @@ import agent
 orig_wd = os.getcwd()
 os.chdir(args.dir1)
 mdls_iter = [str(i) + str(j) for i in range(5) for j in list(range(5)) + list(range(6,10))]
-mdls_names = ["bulk_of_models/dqn_model_epoch_no_" + mdls_iter_ + "000.pth" for mdls_iter_ in mdls_iter]
-# mdls_names = ["dqn_model.pth"]
+# mdls_names = ["bulk_of_models/dqn_model_epoch_no_" + mdls_iter_ + "000.pth" for mdls_iter_ in mdls_iter]
+mdls_names = ["dqn_model.pth"]
 max_wins = 0
 max_wins_name = ""
 for mdl_n in mdls_names:
