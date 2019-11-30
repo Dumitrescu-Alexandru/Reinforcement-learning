@@ -26,16 +26,25 @@ class NNPolicy(nn.Module): # an actor-critic neural network
         hx = self.gru(x.view(-1, 32 * 4 * 4), (hx))
         return self.critic_linear(hx), self.actor_linear(hx), hx
 
-    def try_load(self, save_dir):
-        print(save_dir)
-        paths = list(save_dir.glob('*.tar'))
-        step = 0
-        if len(paths) > 0:
-            ckpts = [int(s.stem.split('.')[-1]) for s in paths]
-            ix = np.argmax(ckpts) ; step = ckpts[ix]
-            self.load_state_dict(torch.load(paths[ix]))
-        print("\tno saved models") if step is 0 else print("\tloaded model: {}".format(paths[ix]))
-        return step
+    def try_load(self, save_dir,model_no =None):
+        if model_no is None:
+            paths = list(save_dir.glob('*.tar'))
+            step = 0
+            if len(paths) > 0:
+                ckpts = [int(s.stem.split('.')[-1]) for s in paths]
+                ix = np.argmax(ckpts) ; step = ckpts[ix]
+                self.load_state_dict(torch.load(paths[ix]))
+            print("\tno saved models") if step is 0 else print("\tloaded model: {}".format(paths[ix]))
+            return step
+        else:
+            model_path = save_dir/f"model.{model_no}.tar"
+            if model_path.exists():
+                self.load_state_dict(torch.load(model_path))
+                step = model_no
+            else:
+                step = 0
+            print(f"Problem model location\n {model_path} doesn't exist") if step is 0 else print("\tloaded model: {}            ".format(model_path.stem))
+            return step
 
 class SharedAdam(torch.optim.Adam): # extend a pytorch optimizer so it shares grads across processes
     def __init__(self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-8, weight_decay=0):
