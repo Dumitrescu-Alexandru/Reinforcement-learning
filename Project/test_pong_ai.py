@@ -42,6 +42,7 @@ parser.add_argument("--load_conv", default=False, action="store_true",
 parser.add_argument("--fixed_eps", default=-1, type=float, help="set a fixed epsilon-exploration parameter")
 parser.add_argument("--dropout", default=False, action="store_true", help="set dropout to the DQN model")
 parser.add_argument("--channels_stack", default=False, action="store_true", help="Set history images to channels")
+parser.add_argument("--start_episode", default=0, type=int, help="Start from specified episode")
 parser.add_argument("--freeze_feat_extractor", default=False, action="store_true",
                     help="Freeze the feature extractor part of the model for parameter tuning")
 args = parser.parse_args()
@@ -52,7 +53,7 @@ env.unwrapped.scale = args.scale
 env.unwrapped.fps = args.fps
 
 # Number of episodes/games to play
-episodes = 150000
+episodes = 170000
 TARGET_UPDATE = 20
 # Define the player
 player_id = 1
@@ -89,7 +90,7 @@ def get_reward(rew, dn, t):
         return rew
 
 
-def black_and_white(state_):
+def black_and_white(state_, black_right_pallet=False):
     # grayscale weights for rgb
     gray_weights = [0.299, 0.587, 0.114]
     new_state = np.dot(state_, gray_weights)
@@ -101,18 +102,19 @@ def black_and_white(state_):
         small_image = new_state.reshape((1, output_size, bin_size,
                                          output_size, bin_size)).max(4).max(2)
         small_image = small_image[0]
-        small_image[:, :45:50] = 47.645
+        if black_right_pallet:
+            small_image[:, :45:50] = 47.645
         return small_image
         # return small_image[0]
     # send only a (size,size) image
     return new_state[0]
 
 
-def preprocess(state_):
+def preprocess(state_, black_right_pallet=False):
     if args.use_black_white:
         # if not already greyscale
         if len(state_.shape) == 3:
-            state_ = black_and_white(state_)
+            state_ = black_and_white(state_, black_right_pallet)
 
     # make rgb channels as last dim instead of first
     elif state_.shape[0] == 3:
@@ -153,13 +155,15 @@ def augment(state_list, m=3):
 
 
 frames = 0
-for i in range(0, episodes):
+for i in range(args.start_episode, episodes):
     done = False
     state = env.reset()
     if args.test:
         eps = 0
     elif args.fixed_eps != -1:
         eps = args.fixed_eps
+    elif args.start_episode != 0:
+        eps = max(0.1, 1 - i/180000)
     else:
         eps = max(0.3, (glie_a - frames) / glie_a)
     cum_reward = 0
@@ -167,7 +171,8 @@ for i in range(0, episodes):
     # time till death for a single game 
     ttd = 0
     channels = 1 if args.use_black_white else 3
-    state_list.append(preprocess(state))
+    black_right_pallet = i > 100000
+    state_list.append(preprocess(state,black_right_pallet))
     if i % 15000 == 0 and i != 0:
         for param_group in player.optimizer.param_groups:
             param_group['lr'] = 1e-6
@@ -180,7 +185,7 @@ for i in range(0, episodes):
         action = player.get_action(augmented_state, eps)
         for _ in range(args.step_multiple):
             next_state, rew1, done, info = env.step(action)
-            next_state = preprocess(next_state)
+            next_state = preprocess(next_state, black_right_pallet)
             state_list.append(next_state)
             cum_reward += rew1
             augmented_state_next_state = augment(state_list, args.history)

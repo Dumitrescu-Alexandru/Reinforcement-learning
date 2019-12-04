@@ -1,4 +1,5 @@
 import argparse
+import pickle
 import sys
 import os
 from pong_testbench import PongTestbench
@@ -19,13 +20,13 @@ import agent
 
 orig_wd = os.getcwd()
 os.chdir(args.dir1)
-mdls_iter = [str(i) + str(j) for i in range(5) for j in range(10)]
-mdls_names = ["bulk_of_models/dqn_model_epoch_no_1" + mdls_iter_ + "000.pth" for mdls_iter_ in mdls_iter]
+mdls_iter = [str(i * 2000) for i in range(1, 74)]
+mdls_names = ["../false_models/dqn_model_epoch_no_" + mdls_iter_ + ".pth" for mdls_iter_ in mdls_iter]
 
 max_wins = 0
 max_wins_name = ""
 for mdl_n in mdls_names:
-
+    f = open('false_results.bin', 'wb')
     agent1 = agent.Agent()
     agent1.load_model(mdl_n)
     os.chdir(orig_wd)
@@ -44,8 +45,10 @@ for mdl_n in mdls_names:
 
     testbench = PongTestbench(args.render)
     testbench.init_players(agent1, agent2)
-    w1, w2 = testbench.run_test(args.games)
+    w1, w2, ttd = testbench.run_test(args.games)
     if w1 > max_wins:
         max_wins_name = mdl_n
         max_wins = w1
         print("Found new max on " + max_wins_name + " with ", w1, w2, " wins")
+    pickle.dump([w1, w2, ttd], f)
+    f.close()
