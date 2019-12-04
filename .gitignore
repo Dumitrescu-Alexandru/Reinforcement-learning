@@ -2,7 +2,7 @@
 .idea/
 *.mdl
 pdf
-*.png
+# *.png
 LICENSE*
 README*
 requirements*
