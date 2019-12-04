@@ -1,0 +1,13 @@
+Although the game of Pong is much simpler than traditional board games such as chess, the number of states in a game are still exponentially large. This is due to the position of both the players' paddle and the location of the ball. Hence we can conclude that the table based methods for Q-learning or SARSA. 
+
+\medskip
+\noindent
+We then turn our attention to approximation representation methods, which seek to use neural networks to approximate the Q-value table in Deep Q-networks or the policy and critic values in the actor critic method. This also increases the sample frequency of the methods compared to tabular methods and allow us to represent large state spaces.
+
+\medskip
+\noindent
+In this project we choose to implement DQNs that allow us to use neural networks outputs to control the choices our agent makes hence allowing us to have a single forward pass to compute the effective Q-value for all the actions in the action space. This concept was introduced in \cite{Atari_Breakout} along with a few improvements such as experience replay memory which allows minibatch updates of the Q-learning algorithm. The advantage of such approaches is that it is model free and and agent should have high generalizability.
+
+\medskip
+\noindent
+Actor-critic models combine the benefits of actor-only and critic-only models as far back as 2002 \cite{orig_a3c}. The approximation of both the actor's policy and the critic value turns out to be an effective method to control the variance which occurs in basic policy gradient algorithms like REINFORCE.  

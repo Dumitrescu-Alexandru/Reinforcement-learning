@@ -1,10 +1,10 @@
-\documentclass[article]{article}
+\documentclass{article}
 
 
 \input{macros}
 
-\title{CS-E4870 \\
-        \large Reinforcement Learning Project} 
+\title{ELEC-E8125 \\
+        Reinforcement Learning Project} 
 \author{  Ananth Mahadevan\\
 \and
 Alexandru Dumitrescu\\
@@ -14,25 +14,37 @@ Alexandru Dumitrescu\\
 \date{}
 \begin{document}
 \maketitle
-
+\clearpage
+\tableofcontents
+\clearpage
 
 \section{Introduction}
 \label{sec:introduction}
 \input{introduction.tex}
-\section{Motivation}
-\label{sec:motivation}
 
 
-\section{Review of External Sources}
+\section{Literature Review}
 \label{sec:external}
+\input{literature_review.tex}
 
 \section{Approach and Methods}
 \label{sec:methods}
 
+\subsection{Processing Pipeline}
+\subsection{DQN}
+\subsection{A3C}
+
+
 \section{Results and Performance Analysis}
 \label{sec:results}
+
+\subsection{DQN}
+\subsection{A3C}
 
 \section{Conclusions}
 \label{sec:conclusion}
 
+\clearpage
+\bibliography{ref}{}
+\bibliographystyle{plain}
 \end{document}
