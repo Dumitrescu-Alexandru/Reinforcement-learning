@@ -10,4 +10,4 @@ In this project we choose to implement DQNs that allow us to use neural networks
 
 \medskip
 \noindent
-Actor-critic models combine the benefits of actor-only and critic-only models as far back as 2002 \cite{orig_a3c}. The approximation of both the actor's policy and the critic value turns out to be an effective method to control the variance which occurs in basic policy gradient algorithms like REINFORCE.  
+Actor-critic models combine the benefits of actor-only and critic-only models as far back as 2002 \cite{orig_a3c}. The approximation of both the actor's policy and the critic value turns out to be an effective method to control the variance which occurs in basic policy gradient algorithms like REINFORCE. The policy gradient nature approach of actor-critic also ensures that the training is much smoother when optimizing the policy space along with a value estimation compared to a pure value estimation like Q-learning. The ability to execute multiple environments and learn asynchronously means that we get a huge performance boost to regular RL frameworks. Hence we also consider implementing the asynchronous advantage actor critic model as seen in \cite{A3C}.

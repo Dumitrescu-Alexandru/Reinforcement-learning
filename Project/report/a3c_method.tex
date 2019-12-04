@@ -1,0 +1,48 @@
+The policy gradient algorithm REINFORCE introduced in Sutton\&Barto \cite{Sutton1998} describes how the performance of the policy parameters $\theta$ denoted by $J(\theta)$ can be used to maximize the performance of the agent by moving the parameters in the direction of the gradient of $J(\theta)$.
+\[
+   \nabla J(\boldsymbol{\theta})= \mathbb{E}_{\pi}\left[ G_{t} \frac{\nabla \pi(A_{t}\mid S_{t},\boldsymbol{\theta})}{\pi(A_{t}\mid S_{t},\boldsymbol{\theta})} \right]  
+\]
+The parameter update then is given by 
+\[ 
+    \boldsymbol{\theta}_{t+1} = \boldsymbol{\theta}_{t} + \alpha G_{t}\frac{\nabla \pi(A_{t}\mid S_{t},\boldsymbol{\theta})}{\pi(A_{t}\mid S_{t},\boldsymbol{\theta})}
+\]
+The baseline addition to the REINFORCE algorithm is a neat mathematical trick to add to the policy gradient. As seen in \cite{Sutton1998},
+\[
+    \nabla J(\boldsymbol{\theta}) \propto \sum_{s} \mu(s) \sum_{a}\left(q_{\pi}(s, a)-b(s)\right) \nabla \pi(a | s, \boldsymbol{\theta})
+\]
+where $J(\theta)$ is the performance of the policy, $\mu(s)$ is the normalized time spent in each state. We see that the addition of a baseline term $b(s)$ doesn't not change the gradient as $    \sum_{a} b(s) \nabla \pi(a | s, \boldsymbol{\theta}) = 0$. This fact can then be used in the calculation of loss for the algorithm which doesn't change the expected value of the update. The benefit of the baseline then is to control the variance during training. 
+
+\medskip
+\noindent
+The actor-critic model is just a baseline REINFORCE model where we also have an approximation of the value function that is then used as the baseline. Therefore we can use a TD(0) update to get an unbiased estimate of the value function in a particular episode. Hence the TD-error then can be called \textbf{advantage} considering a value function $\Hat{v}$ that shares the same parameters $\boldsymbol{\theta}$ as the policy approximation
+\[ 
+    \delta_{t,\boldsymbol{\theta}} = R_{t+1} +\gamma\Hat{v}(S_{t+1},\boldsymbol{\theta}) - \Hat{v}(S_{t},\boldsymbol{\theta})
+\]
+Then the policy gradient update step just looks like 
+\[ 
+    \nabla J(\boldsymbol{\theta}) \approx \mathbb{E}_{\pi}\left[ \nabla_{\boldsymbol{\theta}} \ln \pi_{\boldsymbol{\theta}}(A_{t}\mid S_{t},\boldsymbol{\theta})\delta_{t,\boldsymbol{\theta}} \right]   
+\]
+This gives us gradients with much less variance hence is a good signal for a neural network to learn a policy from. The paper on A3C \cite{A3C} explains how this process can be scaled to multiple parallel actor-learners , this process removes the need for experience replay to stabilize the learning, hence we can use the on-policy advantage actor-critic method. It also comes with the added benefit of speeding up the training byy running multiple processes. They explain how a common slow changing target network that get the shared gradients from the individual learners. 
+
+\bigskip
+\noindent
+Although the theory for A3C is fairly straightforward implementing a working model from scratch is rarely trivial. Due to this fact we searched for existing \texttt{pytorch} implementations of A3C and found the repository of Kostrikov Ilya \cite{orig_a3c}, which had 3 convolution layers and a LSTM layer at the end that gives the model a temporal memory allowing it perform very good on Atari environments. This code base was still pretty complex and this lead to finding an easier repository of Sam Greydanus \cite{baby-a3c}, which had a light weight implementation using the multiprocessing module of \texttt{pytorch} to share model parameters across processes. using this as a base we were able to integrate the given Pong environment and preprocessing steps that was outlined in Section~\ref{subsec:processing}
+
+The model has 4 convolution layers followed by a GRU (instead of LSTM as it performs the same and has fewer parameters) which is then used with individual linear layers to get a actor(policy) and critic value as seen in Listing~\ref{code-a3c-params}
+
+\begin{listing}[ht]
+    \begin{minted}{python}
+        (conv1): Conv2d(1, 32, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1)) 
+        (conv2): Conv2d(32, 32, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1))
+        (conv3): Conv2d(32, 32, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1))
+        (conv4): Conv2d(32, 32, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1))
+        (gru): GRUCell(512, 256)
+        (critic_linear): Linear(in_features=256, out_features=1, bias=True)       
+        (actor_linear): Linear(in_features=256, out_features=3, bias=True)  
+      \end{minted}
+    \caption{A3C Model parameters}
+    \label{code-a3c-params}
+\end{listing}
+
+The model is updated for every 20 timesteps and in those timesteps the GRU layer has it's hidden state propagated. This effectively translates into holding roughly 20 frames of information in the GRU's hidden layer. After 20 frames the hidden layer is detached from the computation graph and then the environment continues.
+    

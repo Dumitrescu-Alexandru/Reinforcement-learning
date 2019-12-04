@@ -10,3 +10,4 @@ copy_to_aalto.sh
 RL-Project.code-workspace
 Project/.vscode/settings.json
 __pycache__
+_minted-*

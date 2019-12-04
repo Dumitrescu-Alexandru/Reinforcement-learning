@@ -1,0 +1,57 @@
+
+\begin{figure}[h!]
+    \centering
+    \begin{subfigure}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/a3c-training-normal.png}
+        \caption{Normal Rewards}
+        \label{fig:training-a3c-normal}
+    \end{subfigure}
+    \begin{subfigure}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/a3c-training-0-05.png}
+        \caption{Reward of $0.05$ for staying alive and $\pm 10$ at end}
+        \label{fig:training-a3c-05}
+    \end{subfigure}
+    
+    \begin{subfigure}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/a3c-training-0-05.png}
+        \caption{Reward of $0.01$ for staying alive and $\pm 10$ at end}
+        \label{fig:training-a3c-01}
+    \end{subfigure}
+    \caption{Training Graphs for a3C model with various rewards}
+    \label{fig:a3c-training}
+\end{figure}
+
+\begin{figure}[h!]
+    \centering
+    \begin{subfigure}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/a3c-test-simpleai.png}
+        \caption{Against SimpleAI}
+        \label{fig:test-a3c-simpleai}
+    \end{subfigure}
+    \begin{subfigure}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/a3c-test-karpathy-not-trained.png}
+        \caption{Against KarpathyNotTrained}
+        \label{fig:test-a3c-karpathy}
+    \end{subfigure}
+
+    \begin{subfigure}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/a3c-test-someagent.png}
+        \caption{Against SomeAgent}
+        \label{fig:test-a3c-someagent}
+    \end{subfigure}
+    \begin{subfigure}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/a3c-test-someaothergent.png}
+        \caption{Against SomeOtherAgent}
+        \label{fig:test-a3c-someotheragent}
+    \end{subfigure}
+    
+    \caption{Test of A3C model against agents}
+    \label{fig:a3c-testing}
+\end{figure}
