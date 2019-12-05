@@ -38,14 +38,16 @@ class PongTestbench(object):
         switch_simple_ai(self.player2)
 
         self.env.switch_sides()
-        print("Switching sides.")
+        # print("Switching sides.")
 
     def play_game(self):
         self.player1.reset()
         self.player2.reset()
         obs1, obs2 = self.env.reset()
         done = False
+        ttd = 0
         while not done:
+            ttd += 1
             action1 = self.player1.get_action(obs1)
             action2 = self.player2.get_action(obs2)
             (obs1, obs2), (rew1, rew2), done, info = self.env.step((action1, action2))
@@ -61,7 +63,8 @@ class PongTestbench(object):
                     raise ValueError("Game finished but no one won?")
                 self.total_games += 1
                 # print("Game %d finished." % self.total_games)
-
+        return ttd
+    
     def run_test(self, no_games=100, switch_freq=-1):
         # Ensure the testbench is in clear state
         assert self.wins1 is 0 and self.wins2 is 0 and self.total_games is 0
@@ -73,20 +76,21 @@ class PongTestbench(object):
             # Don't switch sides at all
             switch_freq = no_games * 2
 
-        print("Running test: %s vs %s." % (self.player1.get_name(), self.player2.get_name()))
+        #print("Running test: %s vs %s." % (self.player1.get_name(), self.player2.get_name()))
+        total_ttd = 0
         for i in range(no_games):
-            self.play_game()
+            total_ttd += self.play_game()
             if i % switch_freq == switch_freq - 1:
                 self.switch_sides()
 
         # Ensure correct state
         assert self.wins1 + self.wins2 == self.total_games
 
-        print("Test results:")
-        print("%s vs %s" % (self.player1.get_name(), self.player2.get_name()))
-        print("%d : %d" % (self.wins1, self.wins2))
-        print("-" * 40)
-        return self.wins1, self.wins2
+        # print("Test results:")
+        # print("%s vs %s" % (self.player1.get_name(), self.player2.get_name()))
+        # print("%d : %d" % (self.wins1, self.wins2))
+        # print("-" * 40)
+        return self.wins1, self.wins2, total_ttd
 
     def set_names(self):
         def verify_name(name):

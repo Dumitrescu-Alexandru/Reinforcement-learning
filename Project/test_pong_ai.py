@@ -103,14 +103,14 @@ def black_and_white(state_, black_right_pallet=False):
                                          output_size, bin_size)).max(4).max(2)
         small_image = small_image[0]
         if black_right_pallet:
-            small_image[:, :45:50] = 47.645
+            small_image[:, 45:50] = 47.645
         return small_image
         # return small_image[0]
     # send only a (size,size) image
     return new_state[0]
 
 
-def preprocess(state_, black_right_pallet=False):
+def preprocess(state_, black_right_pallet=True):
     if args.use_black_white:
         # if not already greyscale
         if len(state_.shape) == 3:
@@ -163,7 +163,7 @@ for i in range(args.start_episode, episodes):
     elif args.fixed_eps != -1:
         eps = args.fixed_eps
     elif args.start_episode != 0:
-        eps = max(0.1, 1 - i/180000)
+        eps = max(0.1, 1 - i / 180000)
     else:
         eps = max(0.3, (glie_a - frames) / glie_a)
     cum_reward = 0
@@ -171,8 +171,8 @@ for i in range(args.start_episode, episodes):
     # time till death for a single game 
     ttd = 0
     channels = 1 if args.use_black_white else 3
-    black_right_pallet = i > 100000
-    state_list.append(preprocess(state,black_right_pallet))
+    black_right_pallet = True
+    state_list.append(preprocess(state, black_right_pallet))
     if i % 15000 == 0 and i != 0:
         for param_group in player.optimizer.param_groups:
             param_group['lr'] = 1e-6
@@ -182,6 +182,9 @@ for i in range(args.start_episode, episodes):
         # get the history augmented state vector
 
         augmented_state = augment(state_list, args.history)
+        if i == 3:
+            plt.imshow(augmented_state.reshape(150, 50), cmap="gray")
+            plt.show()
         action = player.get_action(augmented_state, eps)
         for _ in range(args.step_multiple):
             next_state, rew1, done, info = env.step(action)

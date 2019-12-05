@@ -19,7 +19,10 @@ class FeatExtractConv(nn.Module):
         # # The previous architecture
         if self.model_variant == 1:
             self.conv1 = nn.Conv2d(channels, 32, kernel_size=(7, 7), stride=1)
+            self.max_pool1 = nn.MaxPool2d(kernel_size=(2, 2))
             self.conv2 = nn.Conv2d(32, 32, kernel_size=(5, 5), stride=1)
+            self.max_pool2 = nn.MaxPool2d(kernel_size=(2, 2))
+
             # self.conv3 = nn.Conv2d(32, 32, kernel_size=(3, 3), stride=1)
         elif self.model_variant == 2:
             # The one taken from a3c
@@ -37,7 +40,7 @@ class FeatExtractConv(nn.Module):
             x = F.relu6(self.conv2(x))
             x = F.max_pool2d(x, kernel_size=2)
             # x = F.relu6(self.conv3(x))
-            
+
         # for the borrowed thing from a3c
         elif self.model_variant == 2:
             x = x.to(self.train_device)
@@ -90,6 +93,7 @@ class DQN(nn.Module):
         # x = self.feature_extractor(
         #     x.view(-1, self.channels, self.history * (200 // self.down_factor), 200 // self.down_factor))
         x = F.relu6(self.feature_extractor(x))
+        print(x.shape)
         x = F.relu6(self.hidden_layer(x.view(-1, self.out_dim)))
 
         if self.train_:

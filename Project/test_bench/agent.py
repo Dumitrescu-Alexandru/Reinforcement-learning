@@ -177,7 +177,7 @@ class Agent(object):
 
     def load_model(self, path=""):
         if path:
-            print("Loading model from the given path " + path)
+            # print("Loading model from the given path " + path)
             self.policy_net.load_state_dict(torch.load(path))
         elif os.path.isfile(self.model_name + ".pth"):
             print("Loading the model " + self.model_name + " from the same folder.")

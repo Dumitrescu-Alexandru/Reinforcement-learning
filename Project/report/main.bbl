@@ -1,0 +1,31 @@
+\begin{thebibliography}{1}
+
+\bibitem{orig_a3c}
+Vijaymohan Konda.
+\newblock {\em Actor-critic Algorithms}.
+\newblock PhD thesis, Cambridge, MA, USA, 2002.
+\newblock AAI0804543.
+
+\bibitem{A3C}
+Volodymyr Mnih, Adri{\`{a}}~Puigdom{\`{e}}nech Badia, Mehdi Mirza, Alex Graves,
+  Timothy~P. Lillicrap, Tim Harley, David Silver, and Koray Kavukcuoglu.
+\newblock Asynchronous methods for deep reinforcement learning.
+\newblock {\em CoRR}, abs/1602.01783, 2016.
+
+\bibitem{Atari_Breakout}
+Volodymyr Mnih, Koray Kavukcuoglu, David Silver, Alex Graves, Ioannis
+  Antonoglou, Daan Wierstra, and Martin~A. Riedmiller.
+\newblock Playing atari with deep reinforcement learning.
+\newblock {\em CoRR}, abs/1312.5602, 2013.
+
+\bibitem{baby-a3c}
+Greydanus Sam.
+\newblock Baby a3c: solving atari environments in 180 lines.
+\newblock \url{https://github.com/greydanus/baby-a3c}, 2019.
+
+\bibitem{Sutton1998}
+Richard~S. Sutton and Andrew~G. Barto.
+\newblock {\em Reinforcement Learning: An Introduction}.
+\newblock The MIT Press, second edition, 2018.
+
+\end{thebibliography}
