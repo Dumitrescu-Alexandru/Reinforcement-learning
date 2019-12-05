@@ -26,7 +26,7 @@ This gives us gradients with much less variance hence is a good signal for a neu
 
 \bigskip
 \noindent
-Although the theory for A3C is fairly straightforward implementing a working model from scratch is rarely trivial. Due to this fact we searched for existing \texttt{pytorch} implementations of A3C and found the repository of Kostrikov Ilya \cite{orig_a3c}, which had 3 convolution layers and a LSTM layer at the end that gives the model a temporal memory allowing it perform very good on Atari environments. This code base was still pretty complex and this lead to finding an easier repository of Sam Greydanus \cite{baby-a3c}, which had a light weight implementation using the multiprocessing module of \texttt{pytorch} to share model parameters across processes. using this as a base we were able to integrate the given Pong environment and preprocessing steps that was outlined in Section~\ref{subsec:processing}
+Although the theory behind A3C is fairly straightforward, implementing a working model from scratch is rarely trivial. Due to this fact we searched for existing \texttt{pytorch} implementations of A3C and found the repository of Kostrikov Ilya \cite{orig_a3c}, which had 3 convolution layers and a LSTM layer at the end that gives the model a temporal memory allowing it perform very good on Atari environments. This code base was still pretty complex and this lead to finding an easier repository of Sam Greydanus \cite{baby-a3c}, which had a light weight implementation using the multiprocessing module of \texttt{pytorch} to share model parameters across processes. using this as a base we were able to integrate the given Pong environment and preprocessing steps that was outlined in Section~\ref{subsec:processing}
 
 The model has 4 convolution layers followed by a GRU (instead of LSTM as it performs the same and has fewer parameters) which is then used with individual linear layers to get a actor(policy) and critic value as seen in Listing~\ref{code-a3c-params}
 
@@ -45,4 +45,3 @@ The model has 4 convolution layers followed by a GRU (instead of LSTM as it perf
 \end{listing}
 
 The model is updated for every 20 timesteps and in those timesteps the GRU layer has it's hidden state propagated. This effectively translates into holding roughly 20 frames of information in the GRU's hidden layer. After 20 frames the hidden layer is detached from the computation graph and then the environment continues.
-    
