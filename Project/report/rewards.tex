@@ -1,1 +1,21 @@
-The rewards are important in a RL framework as it sends the signals to the model that allow it to move towards an optimal policy. The particular set up we have we get very sparse rewards, when the agent wins after an episode it gets a reward of $+10$ and if it loses then it gets $-10$. As we have no access to the internal dynamics of the network we cannot engineer any features based on our knowledge of the domain of Pong. 
+The rewards are important in a RL framework as it sends the signals to the model that allow it to move towards an optimal policy. The particular set up we have we get very sparse rewards, when the agent wins after an episode it gets a reward of $+10$ and if it loses then it gets $-10$. As we have no access to the internal dynamics of the network we cannot engineer any features based on our knowledge of the domain of Pong. Further on we will refer to these rewards as \textbf{normal rewards}. 
+
+\medskip
+\noindent
+Even though we mentioned that we have limited game dynamics to engineer rewards, we can still get the amount of time the agent stays alive. As most game agent goes, a basic heuristic is that the longer the agent stays alive the better chance it will have at winning. Utilizing this idea we came up with a couple of ideas to try. On a small note, we did end up finding out that not all rewards worked for all RL models.
+
+\medskip
+\noindent
+The first idea we tried was to check how long the agent stays alive in total and factor that into the final reward structure. We dubbed this approach \textbf{time to death}(ttd), where we keep track of how long the episode lasts and doing a superficial analysis of distributution scaled it by 50 timesteps and added it with the normal rewards as seen below where $t$ is the time of the episode
+\[
+    R_{ttd} = \frac{t}{50} \pm 10 
+\]
+The issue we found with this reward is that it is still sparse and doesn't fix any issues that the normal rewards had. Having the reward being scaled by 50 also tends bias the agent to find fast strategies even when it wasn't possible.
+
+\medskip
+\noindent
+In attempts to fix the ttd rewards we aimed at giving a small reward at every time step similar to the cartpole environment and also maintaining the final win/loss rewards. The idea behind it was that this small reward will help the agent to learn to stay alive long enough to get the large $\pm 10$ at the end of the episode. The value to be chosen also seemed to play a role as a large enough reward at every timestep could make the agent learn strategies to keep playing rather than winning against the opponent. Hence we decided to try values of $0.01$ and $0.05$ per timestep. We will call these reward structures as \textbf{0.05 Rewards} and \textbf{0.01 Rewards}. 
+
+\medskip
+\noindent
+Honorable mentions of other ideas we tried were rewards such as $e^{-(t-50)^{2}}$ which did not prove successful as it restricts the rewards and tends to force suboptimal agent policies. We did have other rewards that didn't pan out, hence we will got into much details in the report.
