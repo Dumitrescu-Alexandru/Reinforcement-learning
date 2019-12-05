@@ -28,16 +28,21 @@ class NNPolicy(nn.Module): # an actor-critic neural network
 
     def try_load(self, save_dir,model_no =None):
         if model_no is None:
-            paths = list(save_dir.glob('*.tar'))
-            step = 0
-            if len(paths) > 0:
-                ckpts = [int(s.stem.split('.')[-1]) for s in paths]
-                ix = np.argmax(ckpts) ; step = ckpts[ix]
-                self.load_state_dict(torch.load(paths[ix]))
-            print("\tno saved models") if step is 0 else print("\tloaded model: {}".format(paths[ix]))
+            step =0
+            if (save_dir/'model.mdl').exists():
+                self.load_state_dict(torch.load(save_dir/'model.mdl'))
+                step =1
+            return step            
+            # paths = list(save_dir.glob('*.mdl'))
+            # step = 0
+            # if len(paths) > 0:
+            #     ckpts = [int(s.stem.split('.')[-1]) for s in paths]
+            #     ix = np.argmax(ckpts) ; step = ckpts[ix]
+            #     self.load_state_dict(torch.load(paths[ix]))
+            # print("\tno saved models") if step is 0 else print("\tloaded model: {}".format(paths[ix]))
             return step
         else:
-            model_path = save_dir/f"model.{model_no}.tar"
+            model_path = save_dir/f"model.{model_no}.mdl"
             if model_path.exists():
                 self.load_state_dict(torch.load(model_path))
                 step = model_no

@@ -53,7 +53,7 @@ class Agent(object):
 
         torch.save(
             self.policy.state_dict(),
-            self.save_dir / f"model.{num_frames/ 1e6:.0f}.tar",
+            self.save_dir / f"model.{num_frames/ 1e6:.0f}.mdl",
         )
 
     def reset(self):
