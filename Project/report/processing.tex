@@ -8,28 +8,30 @@ Where the black and white image is $L$ and the color channels are in Red-Green-B
 
 \medskip
 \noindent
-All these steps to reduce the size of the frame will be helpful irrespective of the actual RL algorithm applied as the final algorithm will need to work with much smaller sized data. There are some more specific preprocessing we performed for a particular method, such as stacking in DQNs. These will be explained in their respective sections.
+All these steps to reduce the size of the frame will be helpful irrespective of the actual RL algorithm applied as the final algorithm will need to work with much smaller sized data without any significant information loss. There are some more specific preprocessing we performed for a particular method, such as stacking in DQNs. These will be explained in their respective sections.
 \begin{figure}[htb!]
     \centering
     \begin{subfigure}{.49\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{figures/raw.png}
+        \includegraphics[scale=0.53]{figures/raw.png}
         \caption{Raw 200x200 frame}
         \label{fig-raw}
     \end{subfigure}
     \begin{subfigure}{0.49\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{figures/bw.png}
+        \includegraphics[scale=0.53]{figures/bw.png}
         \caption{Black and White processed frame}
         \label{fig-bw}
     \end{subfigure}
 
     \begin{subfigure}{0.49\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{figures/small.png}
+        \includegraphics[scale=0.53]{figures/small.png}
         \caption{Down Sampled 50x50 frame}
     \end{subfigure}
     \caption{Frame in different stages of processing}
     \label{fig-small}
     \label{fig-process}
 \end{figure}
+
+\pagebreak

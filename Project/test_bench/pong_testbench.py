@@ -76,7 +76,7 @@ class PongTestbench(object):
             # Don't switch sides at all
             switch_freq = no_games * 2
 
-        #print("Running test: %s vs %s." % (self.player1.get_name(), self.player2.get_name()))
+        # print("Running test: %s vs %s." % (self.player1.get_name(), self.player2.get_name()))
         total_ttd = 0
         for i in range(no_games):
             total_ttd += self.play_game()

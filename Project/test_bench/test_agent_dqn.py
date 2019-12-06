@@ -17,32 +17,32 @@ args = parser.parse_args()
 
 sys.path.insert(0, args.dir1)
 import agent
-
+agent_ = agent.Agent()
+agent_.load_model()
 orig_wd = os.getcwd()
 os.chdir(args.dir1)
-mdls_iter = [str(i * 1000) for i in range(1, 150)]
+mdls_iter = [str(i * 1000) for i in range(166, 167)]
 mdls_names = ["haifu_models/dqn_model_epoch_no_" + mdls_iter_ + ".pth" for mdls_iter_ in mdls_iter]
 
 max_wins = 0
 max_wins_name = ""
-f = open('haifu_results.bin', 'wb')
+
+agent1 = agent.Agent()
+f = open('haifu_results_someagent.bin', 'wb')
+if args.dir2:
+    sys.path.insert(0, args.dir2)
+    importlib.reload(agent)
+    os.chdir(args.dir2)
+    agent2 = agent.Agent()
+    agent2.load_model()
+    os.chdir(orig_wd)
+    del sys.path[0]
+else:
+    agent2 = None
 for mdl_n in mdls_names:
-    agent1 = agent.Agent()
     agent1.load_model(mdl_n)
     os.chdir(orig_wd)
     # del sys.path[0]
-
-    if args.dir2:
-        sys.path.insert(0, args.dir2)
-        importlib.reload(agent)
-        os.chdir(args.dir2)
-        agent2 = agent.Agent()
-        agent2.load_model()
-        os.chdir(orig_wd)
-        del sys.path[0]
-    else:
-        agent2 = None
-
     testbench = PongTestbench(args.render)
     testbench.init_players(agent1, agent2)
     w1, w2, ttd = testbench.run_test(args.games)

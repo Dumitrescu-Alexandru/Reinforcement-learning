@@ -22,7 +22,7 @@ Then the policy gradient update step just looks like
 \[ 
     \nabla J(\boldsymbol{\theta}) \approx \mathbb{E}_{\pi}\left[ \nabla_{\boldsymbol{\theta}} \ln \pi_{\boldsymbol{\theta}}(A_{t}\mid S_{t},\boldsymbol{\theta})\delta_{t,\boldsymbol{\theta}} \right]   
 \]
-This gives us gradients with much less variance hence is a good signal for a neural network to learn a policy from. The paper on A3C \cite{A3C} explains how this process can be scaled to multiple parallel actor-learners , this process removes the need for experience replay to stabilize the learning, hence we can use the on-policy advantage actor-critic method. It also comes with the added benefit of speeding up the training byy running multiple processes. They explain how a common slow changing target network that get the shared gradients from the individual learners. 
+This gives us gradients with much less variance hence is a good signal for a neural network to learn a policy from. The paper on A3C \cite{A3C} explains how this process can be scaled to multiple parallel actor-learners , this process removes the need for experience replay to stabilize the learning, hence we can use the on-policy advantage actor-critic method. It also comes with the added benefit of speeding up the training by running multiple processes. They explain how a common slow changing target network that get the shared gradients from the individual learners. 
 
 \bigskip
 \noindent
@@ -45,3 +45,5 @@ The model has 4 convolution layers followed by a GRU (instead of LSTM as it perf
 \end{listing}
 
 The model is updated for every 20 timesteps and in those timesteps the GRU layer has it's hidden state propagated. This effectively translates into holding roughly 20 frames of information in the GRU's hidden layer. After 20 frames the hidden layer is detached from the computation graph and then the environment continues.
+
+The method seemed like a very good choice to try out and compare to the DQN-baseline we described above. It's parallel actors having said to give much more consistent training with faster convergence at even lower computational cost (the parallelization being done between the cores of the CPU, without any GPU usage), sounded very attractive. As it turned out and can also be seen in the results and conclusion sections, A3C was, in fact, a more reliable approach than the DQN one. Thorough analysis on why and what could have been improved  or implemented differently for DQN can be found in those later sections.

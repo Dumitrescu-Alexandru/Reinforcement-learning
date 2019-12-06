@@ -1,0 +1,21 @@
+Although DQN finally started performing well, it definitely was a bit more tricky to make it learn. 
+
+\medskip
+\noindent
+A first important mention is the exploration: rather than fine-tuning and capping the $\epsilon$ parameter with it's annealing methods, we let the model "decide" on the amount of exploration it will do, based on the confidence ofe the model's policy function predictions. This way, exploration is inherently accounted for by the model, and we clearly saw how the model was way less proned to overfitting compared to DQN.
+
+\medskip
+\noindent
+Second, model architectures were different. Probably the convolution layers did not matter all that much, but the way memory was integrated in the model definitely played a huge role: having a GRU unit in the model (as in our a3c model) instead of augmented images (as in our DQN model, which had 3 concatenated images - current and past two), makes it easier in this respect also - this yet again makes the model decide for itself what information from the past needs to be retained and how long in the past something needs to stay in memory. 
+
+\medskip
+\noindent
+Notice the similarity in the two points that were made: both $\epsilon$ and the length of the memory (number of images) together with the features needed from the past (which for DQN were only pre-processed images) are autmatically accounted for in the A3C method and architecture, compared to the approach we used for DQN.
+
+\medskip
+\noindent
+Lastly, it is clear that the stability of the A3C model is also greatly improved by the 20 parallel episode generation from 20 parallel actors. Exploration is very likely to be a lot more diverse at every point in the training, even when the policy function tends to become confident (with close to 1 prediction on one of the three actions and 0 on the rest).
+
+\medskip
+\noindent
+Generally, the two approaches are quite different. Similar approach with asynchronous training can be tried for DQN also \cite{A3C}, which 	would probably make the Q-learning variant a lot more reliable. It seems that loosing memory replay in favor of parallel multi-actor exploration is more than made up for with higher quality exploration.

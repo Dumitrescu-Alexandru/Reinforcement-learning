@@ -175,7 +175,7 @@ class Agent(object):
                 param.grad.data.clamp_(-1e-1, 1e-1)
         self.optimizer.step()
 
-    def load_model(self, path=""):
+    def load_model(self, path="", asd=""):
         if path:
             # print("Loading model from the given path " + path)
             self.policy_net.load_state_dict(torch.load(path))

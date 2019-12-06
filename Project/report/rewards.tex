@@ -6,11 +6,11 @@ Even though we mentioned that we have limited game dynamics to engineer rewards,
 
 \medskip
 \noindent
-The first idea we tried was to check how long the agent stays alive in total and factor that into the final reward structure. We dubbed this approach \textbf{time to death}(ttd), where we keep track of how long the episode lasts and doing a superficial analysis of distributution scaled it by 50 timesteps and added it with the normal rewards as seen below where $t$ is the time of the episode
+The first idea we tried was to check how long the agent stays alive in total and factor that into the final reward structure. We dubbed this approach \textbf{time to death}(ttd), where we keep track of how long the episode lasts and doing a superficial analysis of distributution scaled it by 50 timesteps and multiplied it with the normal rewards as seen below where $t$ is the time of the episode
 \[
-    R_{ttd} = \frac{t}{50} \pm 10 
+    R_{ttd} = \frac{50}{t} \cdot  (-10) if lost; else +10 
 \]
-The issue we found with this reward is that it is still sparse and doesn't fix any issues that the normal rewards had. Having the reward being scaled by 50 also tends bias the agent to find fast strategies even when it wasn't possible.
+The idea was that we would penalize the model less for the negative reward was received after staying alive for longer. The issue we found with this reward is that it is still sparse and doesn't fix any issues that the normal rewards had.
 
 \medskip
 \noindent

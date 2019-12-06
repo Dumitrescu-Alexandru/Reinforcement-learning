@@ -1,8 +1,8 @@
-Although the game of Pong is much simpler than traditional board games such as chess, the number of states in a game are still exponentially large. This is due to the position of both the players' paddle and the location of the ball. Hence we can conclude that the table based methods for Q-learning or SARSA. 
+Although the game of Pong is much simpler than traditional board games such as chess, the number of states in a game are still exponentially large. This is due to the position of both the players' paddle and the location of the ball (even though the models are trained on pixels, the number of unique image-states can be directly determined by the number of unique position combinations of the 2 paddles and the ball). Hence, we conclude functional approximation methods are prefered to tabular methods in this case.
 
 \medskip
 \noindent
-We then turn our attention to approximation representation methods, which seek to use neural networks to approximate the Q-value table in Deep Q-networks or the policy and critic values in the actor critic method. This also increases the sample frequency of the methods compared to tabular methods and allow us to represent large state spaces.
+We then turn our attention to functional approximation representation methods, which seek to use statistical models (in this case neural networks) to approximate the Q-value table in Deep Q-networks or the policy and critic values in the actor critic method. This also increases the sample frequency of the methods compared to tabular methods and allow us to represent large state spaces.
 
 \medskip
 \noindent
